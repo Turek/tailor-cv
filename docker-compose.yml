@@ -1,0 +1,12 @@
+services:
+  app:
+    build: .
+    env_file: .env
+    working_dir: /app
+    volumes:
+      - ./tailorcv:/app/tailorcv
+      - ./assets:/app/assets
+      - ./profile.yaml:/app/profile.yaml:ro
+      - ./knowledge_base:/app/knowledge_base:ro
+      - ./output:/app/output
+      - ./.env:/app/.env:ro

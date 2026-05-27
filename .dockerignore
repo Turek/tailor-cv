@@ -1,0 +1,6 @@
+output/
+.git/
+__pycache__/
+*.pyc
+.env
+profile.yaml

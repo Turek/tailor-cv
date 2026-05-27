@@ -1,0 +1,16 @@
+full_name: "Tomasz Turczynski"
+subtitle: "Senior Software Engineer"        # professional title under the name
+header_note: "Remote · EU timezone"          # optional short note
+email: "tomasz.turczynski@gmail.com"
+phone: "+48 000 000 000"
+phone_secondary: ""                          # optional
+urls:                                        # multi-value; title optional
+  - { title: "LinkedIn", uri: "https://www.linkedin.com/in/your-handle" }
+  - { title: "GitHub",   uri: "https://github.com/your-handle" }
+nationalities: ["Polish"]                    # multi-value
+cv_footer: |                                  # raw HTML appended to every CV
+  <h2>Skills &amp; Languages</h2>
+  <h3>Technical</h3>
+  <ul><li>Replace with your skills…</li></ul>
+  <h3>Languages</h3>
+  <p>Replace with your languages…</p>

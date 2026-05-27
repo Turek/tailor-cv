@@ -28,10 +28,13 @@ def load_kb(kb_dir: str | Path = "knowledge_base") -> str:
 def count_tokens(text: str, model: str, api_key: str) -> int:
     """Count tokens using the Anthropic token-counting API."""
     client = anthropic.Anthropic(api_key=api_key)
-    resp = client.messages.count_tokens(
-        model=model,
-        messages=[{"role": "user", "content": text}],
-    )
+    try:
+        resp = client.messages.count_tokens(
+            model=model,
+            messages=[{"role": "user", "content": text}],
+        )
+    except anthropic.APIError as e:
+        raise SystemExit(f"Token counting failed: {e}") from e
     return resp.input_tokens
 
 

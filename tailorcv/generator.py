@@ -8,10 +8,11 @@ from . import prompts
 
 
 def _system_blocks(system_prompt: str, kb: str) -> list[dict]:
-    # cache_control on the KB block (the last/largest block of the system prefix)
-    # makes the KB billed at the cache-read rate on the cover-letter call after the CV call.
+    # The KB is the large, shared, CACHED PREFIX (block 0): byte-identical across the CV and
+    # cover-letter calls, so the second call reads it from cache (~0.1x) instead of paying
+    # full rate again — re-runs within the cache TTL benefit too. The small per-document
+    # role instruction follows it (block 1, uncached, varies per document).
     return [
-        {"type": "text", "text": system_prompt},
         {
             "type": "text",
             "text": (
@@ -24,17 +25,21 @@ def _system_blocks(system_prompt: str, kb: str) -> list[dict]:
             ),
             "cache_control": {"type": "ephemeral"},
         },
+        {"type": "text", "text": system_prompt},
     ]
 
 
 def _generate(system_prompt: str, user_prompt: str, kb: str, cfg: Config) -> tuple:
     client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
-    resp = client.messages.create(
-        model=cfg.model,
-        max_tokens=cfg.max_output_tokens,
-        system=_system_blocks(system_prompt, kb),
-        messages=[{"role": "user", "content": user_prompt}],
-    )
+    try:
+        resp = client.messages.create(
+            model=cfg.model,
+            max_tokens=cfg.max_output_tokens,
+            system=_system_blocks(system_prompt, kb),
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+    except anthropic.APIError as e:
+        raise SystemExit(f"Claude request failed: {e}") from e
     html = "".join(
         block.text for block in resp.content if block.type == "text"
     ).strip()

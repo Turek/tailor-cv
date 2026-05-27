@@ -46,3 +46,20 @@ def test_count_tokens_uses_client(monkeypatch):
 
     monkeypatch.setattr("anthropic.Anthropic", FakeClient)
     assert count_tokens("hello", "claude-sonnet-4-6", "sk-ant-test") == 1234
+
+
+def test_count_tokens_wraps_api_errors_as_systemexit(monkeypatch):
+    import httpx
+    import anthropic
+
+    class FakeMessages:
+        def count_tokens(self, **kwargs):
+            raise anthropic.APIConnectionError(request=httpx.Request("POST", "http://x"))
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            self.messages = FakeMessages()
+
+    monkeypatch.setattr("anthropic.Anthropic", FakeClient)
+    with pytest.raises(SystemExit):
+        count_tokens("hello", "claude-sonnet-4-6", "sk-ant-test")

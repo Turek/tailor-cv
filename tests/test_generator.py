@@ -17,12 +17,15 @@ def _fake_usage():
     )
 
 
-def test_system_blocks_caches_kb_block():
+def test_system_blocks_kb_is_cached_prefix():
+    # KB must be block 0 (the cached prefix, identical across both calls); the role
+    # system prompt follows as block 1 (uncached).
     blocks = generator._system_blocks("SYS", "KB-CONTENT-HERE")
-    assert blocks[0]["text"] == "SYS"
-    assert blocks[1]["cache_control"] == {"type": "ephemeral"}
-    assert "KB-CONTENT-HERE" in blocks[1]["text"]
-    assert "Candidate's Professional Knowledge Base" in blocks[1]["text"]
+    assert blocks[0]["cache_control"] == {"type": "ephemeral"}
+    assert "KB-CONTENT-HERE" in blocks[0]["text"]
+    assert "Candidate's Professional Knowledge Base" in blocks[0]["text"]
+    assert blocks[1]["text"] == "SYS"
+    assert "cache_control" not in blocks[1]
 
 
 def test_generate_cv_joins_text_blocks(monkeypatch):
@@ -39,8 +42,8 @@ def test_generate_cv_joins_text_blocks(monkeypatch):
         def create(self, **kwargs):
             assert kwargs["model"] == "claude-sonnet-4-6"
             assert isinstance(kwargs["system"], list)
-            assert kwargs["system"][0]["text"] == "SYS"
-            assert kwargs["system"][1]["cache_control"] == {"type": "ephemeral"}
+            assert kwargs["system"][0]["cache_control"] == {"type": "ephemeral"}
+            assert kwargs["system"][1]["text"] == "SYS"
             assert kwargs["messages"][0]["role"] == "user"
             assert kwargs["messages"][0]["content"] == "USER:JOB"
             return FakeResp()
@@ -71,7 +74,7 @@ def test_generate_cover_letter_uses_letter_prompts(monkeypatch):
 
     class FakeMessages:
         def create(self, **kwargs):
-            captured["system0"] = kwargs["system"][0]["text"]
+            captured["role_prompt"] = kwargs["system"][1]["text"]
             captured["user"] = kwargs["messages"][0]["content"]
             return FakeResp()
 
@@ -84,7 +87,7 @@ def test_generate_cover_letter_uses_letter_prompts(monkeypatch):
     monkeypatch.setattr(generator.prompts, "build_letter_user_prompt", lambda jd: f"LUSER:{jd}")
     out, u = generator.generate_cover_letter("JD", "KB", _cfg())
     assert out == "<p>letter</p>"
-    assert captured["system0"] == "LSYS"
+    assert captured["role_prompt"] == "LSYS"
     assert captured["user"] == "LUSER:JD"
     assert u.input_tokens == 10
 
@@ -97,6 +100,25 @@ def test_generate_empty_content_raises(monkeypatch):
     class FakeMessages:
         def create(self, **kwargs):
             return FakeResp()
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            self.messages = FakeMessages()
+
+    monkeypatch.setattr("anthropic.Anthropic", FakeClient)
+    monkeypatch.setattr(generator.prompts, "cv_system_prompt", lambda: "SYS")
+    monkeypatch.setattr(generator.prompts, "build_cv_user_prompt", lambda jd: "U")
+    with pytest.raises(SystemExit):
+        generator.generate_cv("JOB", "KB", _cfg())
+
+
+def test_generate_wraps_api_errors_as_systemexit(monkeypatch):
+    import httpx
+    import anthropic
+
+    class FakeMessages:
+        def create(self, **kwargs):
+            raise anthropic.APIConnectionError(request=httpx.Request("POST", "http://x"))
 
     class FakeClient:
         def __init__(self, *a, **k):

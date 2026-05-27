@@ -36,9 +36,22 @@ def test_empty_prompt_raises(tmp_path):
         prompts.cover_letter_system_prompt(prompts_dir=tmp_path)
 
 
+def test_build_cv_user_missing_placeholder_raises(tmp_path):
+    (tmp_path / "cv_user.md").write_text("No placeholder here.", encoding="utf-8")
+    with pytest.raises(SystemExit, match="missing"):
+        prompts.build_cv_user_prompt("ACME ROLE", prompts_dir=tmp_path)
+
+
+def test_build_letter_user_missing_placeholder_raises(tmp_path):
+    (tmp_path / "letter_user.md").write_text("nope", encoding="utf-8")
+    with pytest.raises(SystemExit, match="missing"):
+        prompts.build_letter_user_prompt("X", prompts_dir=tmp_path)
+
+
 def test_committed_example_user_prompts_contain_placeholder():
     # The committed .example files are bind-mounted at /app/prompts in the container.
+    base = Path(__file__).resolve().parent.parent / "prompts"
     for name in ("cv_user", "letter_user"):
-        txt = Path("prompts") / f"{name}.md.example"
+        txt = base / f"{name}.md.example"
         assert txt.exists(), f"{txt} missing"
         assert "{{JOB_DESCRIPTION}}" in txt.read_text(encoding="utf-8")

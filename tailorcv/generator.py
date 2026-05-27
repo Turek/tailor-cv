@@ -8,6 +8,8 @@ from . import prompts
 
 
 def _system_blocks(system_prompt: str, kb: str) -> list[dict]:
+    # cache_control on the KB block (the last/largest block of the system prefix)
+    # makes the KB billed at the cache-read rate on the cover-letter call after the CV call.
     return [
         {"type": "text", "text": system_prompt},
         {

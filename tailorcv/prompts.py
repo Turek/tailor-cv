@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-PROMPTS_DIR = Path("prompts")
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 PLACEHOLDER = "{{JOB_DESCRIPTION}}"
 
 
@@ -36,8 +36,20 @@ def cover_letter_system_prompt(prompts_dir: str | Path = PROMPTS_DIR) -> str:
 
 
 def build_cv_user_prompt(job_description: str, prompts_dir: str | Path = PROMPTS_DIR) -> str:
-    return _load("cv_user", prompts_dir).replace(PLACEHOLDER, job_description)
+    template = _load("cv_user", prompts_dir)
+    if PLACEHOLDER not in template:
+        raise SystemExit(
+            f"prompts/cv_user.md is missing the {PLACEHOLDER!r} placeholder. "
+            "Check it against prompts/cv_user.md.example."
+        )
+    return template.replace(PLACEHOLDER, job_description)
 
 
 def build_letter_user_prompt(job_description: str, prompts_dir: str | Path = PROMPTS_DIR) -> str:
-    return _load("letter_user", prompts_dir).replace(PLACEHOLDER, job_description)
+    template = _load("letter_user", prompts_dir)
+    if PLACEHOLDER not in template:
+        raise SystemExit(
+            f"prompts/letter_user.md is missing the {PLACEHOLDER!r} placeholder. "
+            "Check it against prompts/letter_user.md.example."
+        )
+    return template.replace(PLACEHOLDER, job_description)

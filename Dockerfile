@@ -12,10 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python deps first for layer caching.
-COPY pyproject.toml ./
+# Install Python deps first for layer caching. constraints.txt pins exact (incl.
+# transitive) versions for reproducible rebuilds across machines/time.
+COPY pyproject.toml constraints.txt ./
 COPY tailorcv ./tailorcv
-RUN pip install --no-cache-dir .[dev]
+RUN pip install --no-cache-dir .[dev] -c constraints.txt
 
 # Assets (bind-mounted in compose for dev; copied for a standalone image).
 COPY assets ./assets

@@ -1,0 +1,8 @@
+.env
+profile.yaml
+output/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/

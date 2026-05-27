@@ -10,3 +10,4 @@ services:
       - ./knowledge_base:/app/knowledge_base:ro
       - ./output:/app/output
       - ./.env:/app/.env:ro
+      - ./tests:/app/tests

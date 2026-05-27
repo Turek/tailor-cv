@@ -5,11 +5,24 @@ from html import escape
 from pathlib import Path
 from urllib.parse import urlparse
 
-from weasyprint import HTML
+from weasyprint import HTML, default_url_fetcher
 
 from .config import Profile
 
 _CSS_PATH = Path(__file__).resolve().parent.parent / "assets" / "cv-pdf.css"
+
+
+def _no_external_fetch(url: str):
+    """Block external resource fetches during PDF rendering.
+
+    The document inlines its own CSS and needs no external resources, so refusing
+    every non-``data:`` URL neutralises anything an untrusted job ad could induce the
+    model to emit (e.g. ``<img src="http://…">``, CSS ``@import`` / ``url()``,
+    ``file://`` reads). Only ``data:`` URIs are allowed through.
+    """
+    if url.startswith("data:"):
+        return default_url_fetcher(url)
+    raise ValueError(f"Blocked external resource in CV rendering: {url}")
 
 
 def _css() -> str:
@@ -93,11 +106,15 @@ def build_letter_document(body_html: str, p: Profile) -> str:
 
 def render_cv(body_html: str, p: Profile, out_path) -> Path:
     out = Path(out_path)
-    HTML(string=build_cv_document(body_html, p)).write_pdf(str(out))
+    HTML(
+        string=build_cv_document(body_html, p), url_fetcher=_no_external_fetch
+    ).write_pdf(str(out))
     return out
 
 
 def render_cover_letter(body_html: str, p: Profile, out_path) -> Path:
     out = Path(out_path)
-    HTML(string=build_letter_document(body_html, p)).write_pdf(str(out))
+    HTML(
+        string=build_letter_document(body_html, p), url_fetcher=_no_external_fetch
+    ).write_pdf(str(out))
     return out

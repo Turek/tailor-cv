@@ -64,6 +64,27 @@ def test_render_cover_letter_writes_pdf(tmp_path):
     assert Path(out).read_bytes()[:4] == b"%PDF"
 
 
+def test_no_external_fetch_blocks_external_resources():
+    for url in ("http://evil.example/x.png", "https://evil/x", "file:///etc/passwd"):
+        with pytest.raises(ValueError):
+            pdf._no_external_fetch(url)
+
+
+def test_no_external_fetch_allows_data_uris():
+    # data: URIs are self-contained and safe — they are permitted (not blocked).
+    result = pdf._no_external_fetch("data:text/plain;base64,aGVsbG8=")
+    assert result is not None
+
+
+def test_render_cv_with_injected_external_resource_still_succeeds(tmp_path):
+    # A job ad could induce the model to emit an external <img>; rendering must not fetch
+    # it and must still produce a valid PDF (WeasyPrint skips the blocked resource).
+    out = tmp_path / "cv.pdf"
+    body = '<h2>Professional Summary</h2><p>x</p><img src="http://attacker.example/beacon.png">'
+    pdf.render_cv(body, _profile(), out)
+    assert Path(out).read_bytes()[:4] == b"%PDF"
+
+
 def test_letter_header_url_display_preserves_w_hosts():
     p = _profile()
     p.urls = [ProfileUrl(title="", uri="https://workflows.example.com/jobs")]

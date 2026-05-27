@@ -8,3 +8,5 @@ __pycache__/
 .venv/
 docs/
 prompts/*.md
+knowledge_base/*.md
+!knowledge_base/00-summary.md

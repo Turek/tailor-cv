@@ -55,8 +55,14 @@ def load_config(
         raise SystemExit(
             "ANTHROPIC_API_KEY is not set. Add it to .env (see .env.example)."
         )
-    with open(profile_path, "r", encoding="utf-8") as fh:
-        profile_data = yaml.safe_load(fh) or {}
+    try:
+        with open(profile_path, "r", encoding="utf-8") as fh:
+            profile_data = yaml.safe_load(fh) or {}
+    except FileNotFoundError:
+        raise SystemExit(
+            f"Profile file {profile_path!r} not found. Copy the example:\n"
+            "  cp profile.example.yaml profile.yaml\nthen edit it."
+        )
     return Config(
         profile=Profile(**profile_data),
         anthropic_api_key=api_key,

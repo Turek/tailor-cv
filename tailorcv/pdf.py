@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from html import escape
 from pathlib import Path
+from urllib.parse import urlparse
 
 from weasyprint import HTML
 
@@ -12,7 +13,9 @@ _CSS_PATH = Path(__file__).resolve().parent.parent / "assets" / "cv-pdf.css"
 
 
 def _css() -> str:
-    return _CSS_PATH.read_text(encoding="utf-8") if _CSS_PATH.exists() else ""
+    if not _CSS_PATH.exists():
+        raise SystemExit(f"CSS asset not found: {_CSS_PATH}")
+    return _CSS_PATH.read_text(encoding="utf-8")
 
 
 def _cv_header(p: Profile) -> str:
@@ -58,7 +61,8 @@ def _letter_header(p: Profile) -> str:
         parts.append(escape(p.header_note))
     for u in p.urls:
         if u.uri:
-            display = u.title or u.uri.split("//")[-1].lstrip("www.").rstrip("/")
+            host = urlparse(u.uri).netloc or u.uri.split("//")[-1].split("/")[0]
+            display = u.title or host.removeprefix("www.")
             parts.append(escape(display))
     h = [
         '<div class="letter-header">',

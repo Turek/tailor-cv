@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from tailorcv import pdf
 from tailorcv.config import Profile, ProfileUrl
 
@@ -60,3 +62,29 @@ def test_render_cover_letter_writes_pdf(tmp_path):
     out = tmp_path / "cl.pdf"
     pdf.render_cover_letter("<p>Dear team</p>", _profile(), out)
     assert Path(out).read_bytes()[:4] == b"%PDF"
+
+
+def test_letter_header_url_display_preserves_w_hosts():
+    p = _profile()
+    p.urls = [ProfileUrl(title="", uri="https://workflows.example.com/jobs")]
+    doc = pdf.build_letter_document("<p>x</p>", p)
+    # The old lstrip("www.") bug strips leading {'w','.'} chars from the path after "//",
+    # turning "workflows.example.com/jobs" into "orkflows.example.com/jobs".
+    # Confirm the correct display text appears in the contact line (pipe-separated).
+    assert "| workflows.example.com" in doc
+    # The buggy output would NOT start with the full "workflows"
+    assert "| orkflows" not in doc
+
+
+def test_letter_header_url_display_removes_www_prefix():
+    p = _profile()
+    p.urls = [ProfileUrl(title="", uri="https://www.example.com/")]
+    doc = pdf.build_letter_document("<p>x</p>", p)
+    assert "example.com" in doc
+    assert "www.example.com" not in doc
+
+
+def test_css_missing_raises(monkeypatch, tmp_path):
+    monkeypatch.setattr(pdf, "_CSS_PATH", tmp_path / "nope.css")
+    with pytest.raises(SystemExit):
+        pdf.build_cv_document("<p>x</p>", _profile())

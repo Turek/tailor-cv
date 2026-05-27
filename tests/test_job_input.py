@@ -103,3 +103,16 @@ def test_url_thin_markdown_raises(monkeypatch):
     monkeypatch.setattr("firecrawl.Firecrawl", FakeClient)
     with pytest.raises(SystemExit):
         job_input.resolve(url="http://e.com", cfg=_cfg(firecrawl="fc-key"))
+
+
+def test_scrape_api_error_raises_systemexit(monkeypatch):
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        def scrape(self, url, formats=None):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("firecrawl.Firecrawl", FakeClient)
+    with pytest.raises(SystemExit):
+        job_input.resolve(url="http://e.com", cfg=_cfg(firecrawl="fc-key"))

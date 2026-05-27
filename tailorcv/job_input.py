@@ -58,7 +58,12 @@ def _scrape(url: str, cfg: Config) -> JobInput:
     from firecrawl import Firecrawl  # firecrawl-py >= 2.0
 
     client = Firecrawl(api_key=cfg.firecrawl_api_key)
-    doc = client.scrape(url, formats=["markdown"])
+    try:
+        doc = client.scrape(url, formats=["markdown"])
+    except SystemExit:
+        raise
+    except Exception as e:
+        raise SystemExit(f"Firecrawl scrape failed for {url}: {e}") from e
     markdown = (getattr(doc, "markdown", "") or "").strip()
     meta = getattr(doc, "metadata", None)
     if len(markdown) < MIN_SCRAPE_CHARS:

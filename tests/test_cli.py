@@ -133,6 +133,46 @@ def test_generate_prints_cost_summary(tmp_path, monkeypatch):
     assert "Estimated cost" in res.output
 
 
+def _capture_cache_flag(tmp_path, monkeypatch, extra_args):
+    seen = {}
+    monkeypatch.setattr(cli, "load_config", lambda: _cfg())
+    monkeypatch.setattr(cli, "load_kb", lambda: "KB")
+    monkeypatch.setattr(cli, "count_tokens", lambda *a, **k: 100)
+    monkeypatch.setattr(cli, "check_budget", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "resolve", lambda **k: JobInput(description="d"))
+
+    def fake_cv(*a, **k):
+        seen["cv"] = k.get("cache")
+        return ("<p>cv</p>", _fake_usage())
+
+    def fake_cl(*a, **k):
+        seen["cl"] = k.get("cache")
+        return ("<p>cl</p>", _fake_usage())
+
+    monkeypatch.setattr(cli.generator, "generate_cv", fake_cv)
+    monkeypatch.setattr(cli.generator, "generate_cover_letter", fake_cl)
+    monkeypatch.setattr(cli.pdf, "render_cv", lambda html, p, out: out)
+    monkeypatch.setattr(cli.pdf, "render_cover_letter", lambda html, p, out: out)
+    runner = CliRunner()
+    res = runner.invoke(
+        cli.main, ["generate", "--text", "x" * 200, "--output-dir", str(tmp_path), *extra_args]
+    )
+    assert res.exit_code == 0, res.output
+    return seen
+
+
+def test_cache_enabled_only_when_both_documents(tmp_path, monkeypatch):
+    # Both documents → cache the shared KB (2 calls, the 2nd reads it).
+    seen = _capture_cache_flag(tmp_path, monkeypatch, [])
+    assert seen == {"cv": True, "cl": True}
+
+
+def test_cache_disabled_for_single_document(tmp_path, monkeypatch):
+    # cv-only → one call → caching would only ever be written, never read → disabled.
+    seen = _capture_cache_flag(tmp_path, monkeypatch, ["--cv-only"])
+    assert seen == {"cv": False}
+
+
 def test_kb_tokens_over_budget_warns(monkeypatch):
     monkeypatch.setattr(cli, "load_config", lambda: _cfg())
     monkeypatch.setattr(cli, "load_kb", lambda: "KB")

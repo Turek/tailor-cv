@@ -89,16 +89,20 @@ def generate(url, text, text_file, cv_only, letter_only, output_dir, model) -> N
 
     usages = []
     saved = []
+    # Cache the KB only when both documents are generated (2 calls share it within the TTL,
+    # so call 2 reads the cache). For a single-document run the cache would only be written
+    # and never read, so skip it and pay the plain input rate.
+    cache_kb = not cv_only and not letter_only
 
     if not letter_only:
         with _step("Generating CV"):
-            cv_html, u = generator.generate_cv(job.description, kb, cfg)
+            cv_html, u = generator.generate_cv(job.description, kb, cfg, cache=cache_kb)
             usages.append(u)
             saved.append(pdf.render_cv(cv_html, cfg.profile, out_dir / f"{base}-cv.pdf"))
 
     if not cv_only:
         with _step("Generating cover letter"):
-            cl_html, u = generator.generate_cover_letter(job.description, kb, cfg)
+            cl_html, u = generator.generate_cover_letter(job.description, kb, cfg, cache=cache_kb)
             usages.append(u)
             saved.append(
                 pdf.render_cover_letter(cl_html, cfg.profile, out_dir / f"{base}-cover-letter.pdf")

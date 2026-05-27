@@ -41,6 +41,19 @@ def test_valid_config_loads(tmp_path, monkeypatch):
     assert cfg.profile.urls[0].title == "GitHub"
 
 
+def test_bad_token_budget_raises_systemexit(tmp_path, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("TAILORCV_TOKEN_BUDGET", raising=False)
+    profile = _write_profile(tmp_path)
+    env = _write_env(
+        tmp_path,
+        "ANTHROPIC_API_KEY=sk-ant-test\n"
+        "TAILORCV_TOKEN_BUDGET=not-a-number\n",
+    )
+    with pytest.raises(SystemExit):
+        load_config(profile_path=profile, env_path=env)
+
+
 def test_env_overrides_apply(tmp_path, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("TAILORCV_MODEL", raising=False)

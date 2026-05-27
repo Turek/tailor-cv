@@ -35,11 +35,21 @@ class Config(BaseModel):
     max_output_tokens: int = 4096
 
 
+def _int_env(key: str, default: int) -> int:
+    raw = os.environ.get(key, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        raise SystemExit(f"{key} must be an integer, got: {raw!r}")
+
+
 def load_config(
     profile_path: str | Path = "profile.yaml",
     env_path: str | Path = ".env",
 ) -> Config:
-    load_dotenv(env_path)
+    load_dotenv(env_path, override=True)
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
         raise SystemExit(
@@ -52,6 +62,6 @@ def load_config(
         anthropic_api_key=api_key,
         firecrawl_api_key=os.environ.get("FIRECRAWL_API_KEY", "").strip(),
         model=os.environ.get("TAILORCV_MODEL", "claude-sonnet-4-6").strip(),
-        token_budget=int(os.environ.get("TAILORCV_TOKEN_BUDGET", "70000")),
-        max_output_tokens=int(os.environ.get("TAILORCV_MAX_OUTPUT_TOKENS", "4096")),
+        token_budget=_int_env("TAILORCV_TOKEN_BUDGET", 70000),
+        max_output_tokens=_int_env("TAILORCV_MAX_OUTPUT_TOKENS", 4096),
     )

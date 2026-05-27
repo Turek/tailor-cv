@@ -17,6 +17,12 @@ def test_load_kb_empty_dir_raises(tmp_path):
         load_kb(tmp_path)
 
 
+def test_load_kb_whitespace_only_files_raises(tmp_path):
+    (tmp_path / "empty.md").write_text("   \n\n  ", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        load_kb(tmp_path)
+
+
 def test_check_budget_warns_only_when_over():
     assert check_budget(100, 70000) is None
     warn = check_budget(80000, 70000)

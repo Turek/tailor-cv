@@ -17,7 +17,12 @@ def load_kb(kb_dir: str | Path = "knowledge_base") -> str:
         text = f.read_text(encoding="utf-8").strip()
         if text:
             parts.append(f"# [Source: {f.name}]\n\n{text}")
-    return "\n\n---\n\n".join(parts)
+    result = "\n\n---\n\n".join(parts)
+    if not result:
+        raise SystemExit(
+            f"All .md files in {kb_dir}/ are empty. Add content to your knowledge base."
+        )
+    return result
 
 
 def count_tokens(text: str, model: str, api_key: str) -> int:

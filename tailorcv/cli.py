@@ -15,7 +15,9 @@ from . import generator, pdf
 
 def _safe(name: str) -> str:
     name = re.sub(r"[^\w\s\-.]", "", name)
-    return re.sub(r"\s+", " ", name).strip()
+    name = re.sub(r"\s+", " ", name).strip()
+    name = re.sub(r"\.{2,}", ".", name)  # collapse dot-runs so ".." can't be a path segment
+    return name or "unknown"
 
 
 def _base_name(job) -> str:
@@ -51,10 +53,10 @@ def kb_tokens() -> None:
 @click.option("--model", default=None)
 def generate(url, text, text_file, cv_only, letter_only, output_dir, model) -> None:
     if cv_only and letter_only:
-        raise SystemExit("--cv-only and --letter-only are mutually exclusive.")
+        raise click.UsageError("--cv-only and --letter-only are mutually exclusive.")
     cfg = load_config()
     if model:
-        cfg.model = model
+        cfg = cfg.model_copy(update={"model": model})
 
     click.echo("Loading knowledge base…")
     kb = load_kb()

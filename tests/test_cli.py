@@ -20,24 +20,25 @@ def _fake_usage():
     )
 
 
-def test_safe_strips_unsafe_chars():
-    assert cli._safe("Senior Eng/ineer: <x>") == "Senior Engineer x"
+def test_slug_lowercase_hyphenated_no_spaces():
+    assert cli._slug("Senior Eng/ineer: <x>") == "senior-engineer-x"
 
 
-def test_safe_collapses_dot_sequences():
-    assert ".." not in cli._safe("Senior .. Engineer")
-    assert ".." not in cli._safe("..")
-    assert cli._safe("@@@") == "unknown"
+def test_slug_drops_dots_and_empty_falls_back():
+    assert "." not in cli._slug("Senior .. Engineer")
+    assert cli._slug("Senior .. Engineer") == "senior-engineer"
+    assert cli._slug("..") == "job"
+    assert cli._slug("@@@") == "job"
 
 
 def test_base_name_uses_title_company():
     ji = JobInput(description="d", title="Senior Eng", company="ACME")
-    assert cli._base_name(ji) == "Senior Eng - ACME"
+    assert cli._base_name(ji) == "senior-eng-acme"
 
 
 def test_base_name_timestamp_fallback():
     ji = JobInput(description="d")
-    assert cli._base_name(ji).startswith("Job - ")
+    assert cli._base_name(ji).startswith("job-")
 
 
 def test_cv_and_letter_only_mutually_exclusive():
@@ -63,8 +64,8 @@ def test_generate_writes_both_files(tmp_path, monkeypatch):
     runner = CliRunner()
     res = runner.invoke(cli.main, ["generate", "--text", "x" * 200, "--output-dir", str(tmp_path)])
     assert res.exit_code == 0, res.output
-    assert any("T - C - CV.pdf" in w for w in written)
-    assert any("T - C - Cover Letter.pdf" in w for w in written)
+    assert any("t-c-cv.pdf" in w for w in written)
+    assert any("t-c-cover-letter.pdf" in w for w in written)
 
 
 def test_generate_cv_only_writes_one(tmp_path, monkeypatch):
@@ -109,7 +110,7 @@ def test_generate_letter_only_writes_one(tmp_path, monkeypatch):
     res = runner.invoke(cli.main, ["generate", "--text", "x" * 200, "--letter-only", "--output-dir", str(tmp_path)])
     assert res.exit_code == 0, res.output
     assert len(written) == 1
-    assert "Cover Letter.pdf" in written[0]
+    assert "cover-letter.pdf" in written[0]
 
 
 def test_generate_prints_cost_summary(tmp_path, monkeypatch):

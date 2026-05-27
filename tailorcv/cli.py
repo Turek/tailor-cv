@@ -13,18 +13,20 @@ from .job_input import resolve
 from . import generator, pdf, usage
 
 
-def _safe(name: str) -> str:
-    name = re.sub(r"[^\w\s\-.]", "", name)
-    name = re.sub(r"\s+", " ", name).strip()
-    name = re.sub(r"\.{2,}", ".", name)  # collapse dot-runs so ".." can't be a path segment
-    return name or "unknown"
+def _slug(name: str) -> str:
+    """Lowercase, hyphen-separated, filesystem-safe slug (no spaces, no dots)."""
+    name = name.lower()
+    name = re.sub(r"[^\w\s-]", "", name)   # drop everything except word chars, space, hyphen
+    name = re.sub(r"[\s_]+", "-", name)    # spaces/underscores → hyphen
+    name = re.sub(r"-{2,}", "-", name)     # collapse repeated hyphens
+    return name.strip("-") or "job"
 
 
 def _base_name(job) -> str:
     bits = [b for b in (job.title, job.company) if b]
     if bits:
-        return _safe(" - ".join(bits))
-    return "Job - " + dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+        return _slug(" - ".join(bits))
+    return "job-" + dt.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 @click.group()
@@ -77,14 +79,14 @@ def generate(url, text, text_file, cv_only, letter_only, output_dir, model) -> N
         click.echo("Generating CV…")
         cv_html, u = generator.generate_cv(job.description, kb, cfg)
         usages.append(u)
-        p = pdf.render_cv(cv_html, cfg.profile, out_dir / f"{base} - CV.pdf")
+        p = pdf.render_cv(cv_html, cfg.profile, out_dir / f"{base}-cv.pdf")
         click.echo(f"  → {p}")
 
     if not cv_only:
         click.echo("Generating cover letter…")
         cl_html, u = generator.generate_cover_letter(job.description, kb, cfg)
         usages.append(u)
-        p = pdf.render_cover_letter(cl_html, cfg.profile, out_dir / f"{base} - Cover Letter.pdf")
+        p = pdf.render_cover_letter(cl_html, cfg.profile, out_dir / f"{base}-cover-letter.pdf")
         click.echo(f"  → {p}")
 
     if usages:

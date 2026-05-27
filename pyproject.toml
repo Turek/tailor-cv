@@ -28,3 +28,6 @@ include = ["tailorcv*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+filterwarnings = [
+    "ignore:Field name .* shadows an attribute:UserWarning",
+]

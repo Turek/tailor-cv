@@ -1,6 +1,7 @@
 """Command-line interface."""
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import re
 from pathlib import Path
@@ -11,6 +12,18 @@ from .config import load_config
 from .knowledge_base import load_kb, count_tokens, check_budget
 from .job_input import resolve
 from . import generator, pdf, usage
+
+
+@contextlib.contextmanager
+def _step(label: str):
+    """Print ``label… `` then ``Done`` (green) or ``Failed`` (red) inline."""
+    click.echo(f"{label}… ", nl=False)
+    try:
+        yield
+    except BaseException:
+        click.secho("Failed", fg="red", bold=True)
+        raise
+    click.secho("Done", fg="green", bold=True)
 
 
 def _slug(name: str) -> str:
@@ -60,36 +73,39 @@ def generate(url, text, text_file, cv_only, letter_only, output_dir, model) -> N
     if model:
         cfg = cfg.model_copy(update={"model": model})
 
-    click.echo("Loading knowledge base…")
-    kb = load_kb()
-    warn = check_budget(count_tokens(kb, cfg.model, cfg.anthropic_api_key), cfg.token_budget)
+    with _step("Loading knowledge base"):
+        kb = load_kb()
+        token_count = count_tokens(kb, cfg.model, cfg.anthropic_api_key)
+    warn = check_budget(token_count, cfg.token_budget)
     if warn:
-        click.echo(warn, err=True)
+        click.secho(warn, fg="yellow", err=True)
 
-    click.echo("Resolving job description…")
-    job = resolve(text=text, url=url, text_file=text_file, cfg=cfg)
+    with _step("Resolving job description"):
+        job = resolve(text=text, url=url, text_file=text_file, cfg=cfg)
 
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     base = _base_name(job)
 
     usages = []
+    saved = []
 
     if not letter_only:
-        click.echo("Generating CV…")
-        cv_html, u = generator.generate_cv(job.description, kb, cfg)
-        usages.append(u)
-        p = pdf.render_cv(cv_html, cfg.profile, out_dir / f"{base}-cv.pdf")
-        click.echo(f"  → {p}")
+        with _step("Generating CV"):
+            cv_html, u = generator.generate_cv(job.description, kb, cfg)
+            usages.append(u)
+            saved.append(pdf.render_cv(cv_html, cfg.profile, out_dir / f"{base}-cv.pdf"))
 
     if not cv_only:
-        click.echo("Generating cover letter…")
-        cl_html, u = generator.generate_cover_letter(job.description, kb, cfg)
-        usages.append(u)
-        p = pdf.render_cover_letter(cl_html, cfg.profile, out_dir / f"{base}-cover-letter.pdf")
-        click.echo(f"  → {p}")
+        with _step("Generating cover letter"):
+            cl_html, u = generator.generate_cover_letter(job.description, kb, cfg)
+            usages.append(u)
+            saved.append(
+                pdf.render_cover_letter(cl_html, cfg.profile, out_dir / f"{base}-cover-letter.pdf")
+            )
 
     if usages:
-        click.echo(usage.summarize(usages, cfg.model))
-
-    click.echo("Done.")
+        for line in usage.summarize(usages, cfg.model).splitlines():
+            click.secho(line, bold=True)
+    for p in saved:
+        click.secho(f"Saved: {p}", fg="cyan")

@@ -55,7 +55,13 @@ def _meta_get(meta, key: str) -> str:
 
 
 def _scrape(url: str, cfg: Config) -> JobInput:
-    from firecrawl import Firecrawl  # firecrawl-py >= 2.0
+    import warnings
+
+    with warnings.catch_warnings():
+        # firecrawl-py emits noisy pydantic "Field name 'json' shadows…" UserWarnings
+        # at import time; they are harmless and not actionable by us.
+        warnings.simplefilter("ignore")
+        from firecrawl import Firecrawl  # firecrawl-py >= 2.0
 
     client = Firecrawl(api_key=cfg.firecrawl_api_key)
     try:

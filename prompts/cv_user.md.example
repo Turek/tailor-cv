@@ -1,0 +1,10 @@
+## Job Advertisement (Target Role)
+
+{{JOB_DESCRIPTION}}
+
+## Task
+
+Generate a tailored CV following your system instructions, drawing on the candidate's
+knowledge base in the system context. Output only the inner HTML content.
+
+(This is an example prompt. Copy it to prompts/cv_user.md and replace with your own.)

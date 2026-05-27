@@ -8,5 +8,6 @@ services:
       - ./assets:/app/assets
       - ./profile.yaml:/app/profile.yaml:ro
       - ./knowledge_base:/app/knowledge_base:ro
+      - ./prompts:/app/prompts:ro
       - ./output:/app/output
       - ./tests:/app/tests

@@ -27,7 +27,7 @@ def _system_blocks(system_prompt: str, kb: str) -> list[dict]:
     ]
 
 
-def _generate(system_prompt: str, user_prompt: str, kb: str, cfg: Config) -> str:
+def _generate(system_prompt: str, user_prompt: str, kb: str, cfg: Config) -> tuple:
     client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
     resp = client.messages.create(
         model=cfg.model,
@@ -40,10 +40,10 @@ def _generate(system_prompt: str, user_prompt: str, kb: str, cfg: Config) -> str
     ).strip()
     if not html:
         raise SystemExit("Model returned empty content; no document generated.")
-    return html
+    return html, resp.usage
 
 
-def generate_cv(job_description: str, kb: str, cfg: Config) -> str:
+def generate_cv(job_description: str, kb: str, cfg: Config) -> tuple:
     return _generate(
         prompts.cv_system_prompt(),
         prompts.build_cv_user_prompt(job_description),
@@ -52,7 +52,7 @@ def generate_cv(job_description: str, kb: str, cfg: Config) -> str:
     )
 
 
-def generate_cover_letter(job_description: str, kb: str, cfg: Config) -> str:
+def generate_cover_letter(job_description: str, kb: str, cfg: Config) -> tuple:
     return _generate(
         prompts.cover_letter_system_prompt(),
         prompts.build_letter_user_prompt(job_description),

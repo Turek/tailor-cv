@@ -10,7 +10,7 @@ import click
 from .config import load_config
 from .knowledge_base import load_kb, count_tokens, check_budget
 from .job_input import resolve
-from . import generator, pdf
+from . import generator, pdf, usage
 
 
 def _safe(name: str) -> str:
@@ -71,16 +71,23 @@ def generate(url, text, text_file, cv_only, letter_only, output_dir, model) -> N
     out_dir.mkdir(parents=True, exist_ok=True)
     base = _base_name(job)
 
+    usages = []
+
     if not letter_only:
         click.echo("Generating CV…")
-        cv_html = generator.generate_cv(job.description, kb, cfg)
+        cv_html, u = generator.generate_cv(job.description, kb, cfg)
+        usages.append(u)
         p = pdf.render_cv(cv_html, cfg.profile, out_dir / f"{base} - CV.pdf")
         click.echo(f"  → {p}")
 
     if not cv_only:
         click.echo("Generating cover letter…")
-        cl_html = generator.generate_cover_letter(job.description, kb, cfg)
+        cl_html, u = generator.generate_cover_letter(job.description, kb, cfg)
+        usages.append(u)
         p = pdf.render_cover_letter(cl_html, cfg.profile, out_dir / f"{base} - Cover Letter.pdf")
         click.echo(f"  → {p}")
+
+    if usages:
+        click.echo(usage.summarize(usages, cfg.model))
 
     click.echo("Done.")

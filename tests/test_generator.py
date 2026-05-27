@@ -1,10 +1,20 @@
 import pytest
+from types import SimpleNamespace
 from tailorcv import generator
 from tailorcv.config import Config, Profile
 
 
 def _cfg():
     return Config(profile=Profile(full_name="X"), anthropic_api_key="sk-ant-test")
+
+
+def _fake_usage():
+    return SimpleNamespace(
+        input_tokens=10,
+        output_tokens=5,
+        cache_creation_input_tokens=0,
+        cache_read_input_tokens=0,
+    )
 
 
 def test_system_blocks_caches_kb_block():
@@ -23,6 +33,7 @@ def test_generate_cv_joins_text_blocks(monkeypatch):
 
     class FakeResp:
         content = [Block("text", "<h2>Professional Summary</h2>"), Block("text", "<p>ok</p>")]
+        usage = _fake_usage()
 
     class FakeMessages:
         def create(self, **kwargs):
@@ -41,8 +52,9 @@ def test_generate_cv_joins_text_blocks(monkeypatch):
     monkeypatch.setattr("anthropic.Anthropic", FakeClient)
     monkeypatch.setattr(generator.prompts, "cv_system_prompt", lambda: "SYS")
     monkeypatch.setattr(generator.prompts, "build_cv_user_prompt", lambda jd: f"USER:{jd}")
-    html = generator.generate_cv("JOB", "KB", _cfg())
+    html, u = generator.generate_cv("JOB", "KB", _cfg())
     assert html == "<h2>Professional Summary</h2><p>ok</p>"
+    assert u.input_tokens == 10
 
 
 def test_generate_cover_letter_uses_letter_prompts(monkeypatch):
@@ -53,6 +65,7 @@ def test_generate_cover_letter_uses_letter_prompts(monkeypatch):
 
     class FakeResp:
         content = [Block("text", "<p>letter</p>")]
+        usage = _fake_usage()
 
     captured = {}
 
@@ -69,15 +82,17 @@ def test_generate_cover_letter_uses_letter_prompts(monkeypatch):
     monkeypatch.setattr("anthropic.Anthropic", FakeClient)
     monkeypatch.setattr(generator.prompts, "cover_letter_system_prompt", lambda: "LSYS")
     monkeypatch.setattr(generator.prompts, "build_letter_user_prompt", lambda jd: f"LUSER:{jd}")
-    out = generator.generate_cover_letter("JD", "KB", _cfg())
+    out, u = generator.generate_cover_letter("JD", "KB", _cfg())
     assert out == "<p>letter</p>"
     assert captured["system0"] == "LSYS"
     assert captured["user"] == "LUSER:JD"
+    assert u.input_tokens == 10
 
 
 def test_generate_empty_content_raises(monkeypatch):
     class FakeResp:
         content = []
+        usage = _fake_usage()
 
     class FakeMessages:
         def create(self, **kwargs):

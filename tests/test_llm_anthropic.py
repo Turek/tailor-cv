@@ -25,6 +25,10 @@ class _Block:
         self.text = text
 
 
+def test_client_exposes_model_attribute():
+    assert AnthropicClient(_cfg()).model == "claude-sonnet-4-6"
+
+
 def test_system_blocks_kb_prefix_then_role_prompt():
     blocks = AnthropicClient(_cfg())._system_blocks("SYS", "KB-CONTENT", cache=False)
     assert "KB-CONTENT" in blocks[0]["text"]

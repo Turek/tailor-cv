@@ -36,8 +36,6 @@ class Config(BaseModel):
     gemini_api_key: str = ""
     firecrawl_api_key: str = ""
     provider: Provider = "anthropic"
-    # Retained for the Anthropic budget/tokenizer path; clients pin their own model.
-    model: str = "claude-sonnet-4-6"
     token_budget: int = 70000
     max_output_tokens: int = 4096
 
@@ -85,7 +83,6 @@ def load_config(
         gemini_api_key=os.environ.get("GEMINI_API_KEY", "").strip(),
         firecrawl_api_key=os.environ.get("FIRECRAWL_API_KEY", "").strip(),
         provider=_provider_env(),
-        model=os.environ.get("TAILORCV_MODEL", "claude-sonnet-4-6").strip(),
         token_budget=_int_env("TAILORCV_TOKEN_BUDGET", 70000),
         max_output_tokens=_int_env("TAILORCV_MAX_OUTPUT_TOKENS", 4096),
     )

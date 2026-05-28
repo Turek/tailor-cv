@@ -6,7 +6,9 @@ tokens are collected into a single string before returning.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
+from typing import Iterator
 
 from ..config import Config
 from .base import Usage
@@ -21,6 +23,32 @@ _KB_PREFIX = (
 )
 
 
+# Dev-time bugs we never want to disguise as "Gemini request failed".
+# These ALL indicate our own broken code, not an SDK/network problem, so let
+# them propagate with their real traceback.
+_DEV_ERRORS = (NameError, AttributeError, ImportError, SyntaxError, IndentationError)
+
+
+@contextlib.contextmanager
+def _scoped_env(name: str, value: str) -> Iterator[None]:
+    """Temporarily set an env var and restore the prior value on exit.
+
+    The antigravity SDK reads ``GEMINI_API_KEY`` from the environment; writing
+    it globally would leak across calls in any long-lived process (e.g. an MCP
+    server) and pollute tests run in the same interpreter. Scoping it to the
+    one call keeps process state clean.
+    """
+    prev = os.environ.get(name)
+    os.environ[name] = value
+    try:
+        yield
+    finally:
+        if prev is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = prev
+
+
 class GoogleClient:
     """Sends prompts to Gemini via google-antigravity. `cache` is a no-op here."""
 
@@ -28,6 +56,7 @@ class GoogleClient:
 
     def __init__(self, cfg: Config) -> None:
         self._cfg = cfg
+        self.model = self.MODEL  # satisfies LLMClient.model
 
     def generate(
         self,
@@ -40,16 +69,17 @@ class GoogleClient:
             raise SystemExit(
                 "GEMINI_API_KEY is not set. Add it to .env (see .env.example)."
             )
-        # The SDK reads GEMINI_API_KEY from the environment; mirror our config
-        # value so a user who set it only in .env still works.
-        os.environ["GEMINI_API_KEY"] = self._cfg.gemini_api_key
 
         instructions = f"{_KB_PREFIX}{kb}\n\n{system_prompt}"
         try:
-            return asyncio.run(self._run(instructions, user_prompt))
+            with _scoped_env("GEMINI_API_KEY", self._cfg.gemini_api_key):
+                return asyncio.run(self._run(instructions, user_prompt))
         except SystemExit:
             raise
-        except Exception as e:  # noqa: BLE001 — any SDK/network failure is a hard stop
+        except _DEV_ERRORS:
+            # Surface our own bugs with their real traceback.
+            raise
+        except Exception as e:  # noqa: BLE001 — wrap genuine SDK/network failures
             raise SystemExit(f"Gemini request failed: {e}") from e
 
     async def _run(self, instructions: str, user_prompt: str) -> tuple[str, Usage]:
@@ -64,9 +94,15 @@ class GoogleClient:
                 chunks.append(token)
             text = "".join(chunks).strip()
             u = agent.conversation.total_usage
+            # Gemini 2.5 Flash defaults to thinking mode; the SDK splits output
+            # between candidates_token_count and thoughts_token_count. Google
+            # bills both as output tokens, so we sum them — otherwise a reasoning-
+            # heavy answer reports as ~$0 in the cost summary.
+            candidates = getattr(u, "candidates_token_count", 0) or 0
+            thoughts = getattr(u, "thoughts_token_count", 0) or 0
             return text, Usage(
                 input_tokens=getattr(u, "prompt_token_count", 0) or 0,
-                output_tokens=getattr(u, "candidates_token_count", 0) or 0,
+                output_tokens=candidates + thoughts,
                 cache_read=None,
                 cache_write=None,
             )

@@ -36,7 +36,6 @@ def test_valid_config_loads(tmp_path, monkeypatch):
     assert isinstance(cfg, Config)
     assert cfg.profile.full_name == "Tomasz King"
     assert cfg.anthropic_api_key == "sk-ant-test"
-    assert cfg.model == "claude-sonnet-4-6"
     assert cfg.token_budget == 70000
     assert cfg.profile.urls[0].title == "GitHub"
 
@@ -63,17 +62,14 @@ def test_bad_token_budget_raises_systemexit(tmp_path, monkeypatch):
 
 def test_env_overrides_apply(tmp_path, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("TAILORCV_MODEL", raising=False)
     monkeypatch.delenv("TAILORCV_TOKEN_BUDGET", raising=False)
     profile = _write_profile(tmp_path)
     env = _write_env(
         tmp_path,
         "ANTHROPIC_API_KEY=sk-ant-test\n"
-        "TAILORCV_MODEL=claude-opus-4-6\n"
         "TAILORCV_TOKEN_BUDGET=50000\n",
     )
     cfg = load_config(profile_path=profile, env_path=env)
-    assert cfg.model == "claude-opus-4-6"
     assert cfg.token_budget == 50000
 
 

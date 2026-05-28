@@ -44,17 +44,21 @@ class _RetryIndicator(logging.Filter):
 
 # Loggers that are noisy by default and have no business printing INFO/DEBUG
 # on a successful CLI run. Set to ERROR so genuine failures still surface.
+#
+# Deliberately *not* in this list: the parent ``google`` and ``asyncio``
+# loggers. Silencing ``google`` would also mute ``google.auth`` / ``google.api_core``
+# quota and credential warnings; silencing ``asyncio`` has historically hidden
+# real deadlock / unawaited-coroutine warnings. We target the specific noisy
+# children only.
 _NOISY_LOGGERS = (
     "fontTools",
     "weasyprint",
-    "google",
     "google.antigravity",
     "google.genai",
     "google_genai",
     "httpx",
     "httpcore",
     "urllib3",
-    "asyncio",
     "PIL",
     "anthropic",
 )

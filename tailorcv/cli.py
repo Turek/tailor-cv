@@ -11,6 +11,7 @@ import click
 from .config import load_config
 from .knowledge_base import load_kb, count_tokens, check_budget
 from .job_input import resolve
+from .llm import get_client
 from . import generator, logging_setup, pdf, usage
 
 
@@ -54,7 +55,7 @@ def main() -> None:
 def kb_tokens() -> None:
     cfg = load_config()
     kb = load_kb()
-    n = count_tokens(kb, cfg.model, cfg.anthropic_api_key)
+    n = count_tokens(kb, cfg.anthropic_api_key)
     click.echo(f"Knowledge base: {n:,} tokens (budget {cfg.token_budget:,}).")
     warn = check_budget(n, cfg.token_budget)
     if warn:
@@ -83,7 +84,7 @@ def generate(url, text, text_file, cv_only, letter_only, output_dir, provider) -
 
     with _step("Loading knowledge base"):
         kb = load_kb()
-        token_count = count_tokens(kb, cfg.model, cfg.anthropic_api_key)
+        token_count = count_tokens(kb, cfg.anthropic_api_key)
     warn = check_budget(token_count, cfg.token_budget)
     if warn:
         click.secho(warn, fg="yellow", err=True)
@@ -117,11 +118,8 @@ def generate(url, text, text_file, cv_only, letter_only, output_dir, provider) -
             )
 
     if usages:
-        # Pricing table is keyed by the per-provider pinned model id.
-        model_label = (
-            "gemini-2.5-flash" if cfg.provider == "google" else "claude-sonnet-4-6"
-        )
-        for line in usage.summarize(usages, model_label).splitlines():
+        # Single source of truth for the provider→model mapping: the client itself.
+        for line in usage.summarize(usages, get_client(cfg).model).splitlines():
             click.secho(line, bold=True)
     for p in saved:
         click.secho(f"Saved: {p}", fg="cyan")

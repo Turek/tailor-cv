@@ -25,12 +25,21 @@ def load_kb(kb_dir: str | Path = "knowledge_base") -> str:
     return result
 
 
-def count_tokens(text: str, model: str, api_key: str) -> int:
-    """Count tokens using the Anthropic token-counting API."""
+def count_tokens(text: str, api_key: str) -> int:
+    """Count tokens using the Anthropic token-counting API.
+
+    The tokenizer model is pinned to the Anthropic backend's model id — token
+    counts are near-identical across Claude models, and this keeps the
+    provider→model mapping in one place (``AnthropicClient.MODEL``).
+    """
+    # Imported here rather than at module top to avoid a circular import: the
+    # llm package depends on config, which would otherwise depend on us via cli.
+    from .llm.anthropic_client import AnthropicClient
+
     client = anthropic.Anthropic(api_key=api_key)
     try:
         resp = client.messages.count_tokens(
-            model=model,
+            model=AnthropicClient.MODEL,
             messages=[{"role": "user", "content": text}],
         )
     except anthropic.APIError as e:

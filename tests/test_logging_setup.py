@@ -35,6 +35,16 @@ def test_configure_silences_noisy_loggers():
         assert logging.getLogger(name).level == logging.ERROR
 
 
+def test_configure_does_not_silence_google_or_asyncio_parents():
+    """Silencing parent loggers would hide real auth/quota and deadlock warnings."""
+    _reset_root()
+    logging_setup.configure()
+    # NOTSET means "inherit from root", which is WARNING after configure() —
+    # so the parent will still emit WARNING+ records.
+    assert logging.getLogger("google").level == logging.NOTSET
+    assert logging.getLogger("asyncio").level == logging.NOTSET
+
+
 def test_configure_drops_info_and_debug_records(capsys):
     _reset_root()
     logging_setup.configure()

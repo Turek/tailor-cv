@@ -27,7 +27,13 @@ class LLMClient(Protocol):
     Implementations build provider-specific request shapes from the two prompts
     plus the KB, and return raw model text plus a Usage record. Code-fence
     stripping and empty-response handling live in the dispatcher, not here.
+
+    `model` is the pinned model id (e.g. ``"claude-sonnet-4-6"`` /
+    ``"gemini-2.5-flash"``) — the CLI uses it as the cost-table key so the
+    provider→model mapping lives in one place: the client.
     """
+
+    model: str
 
     def generate(
         self,

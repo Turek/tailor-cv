@@ -16,10 +16,11 @@ def _cfg(gemini_key="g-key"):
 
 
 class _FakeUsage:
-    def __init__(self, prompt=11, candidates=7):
+    def __init__(self, prompt=11, candidates=7, thoughts=0):
         self.prompt_token_count = prompt
         self.candidates_token_count = candidates
-        self.total_token_count = prompt + candidates
+        self.thoughts_token_count = thoughts
+        self.total_token_count = prompt + candidates + thoughts
 
 
 class _FakeConversation:
@@ -124,3 +125,68 @@ def test_sdk_exception_wrapped_as_systemexit(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         GoogleClient(_cfg()).generate("S", "U", "KB")
     assert "Gemini request failed" in str(exc.value)
+
+
+def test_dev_errors_propagate_unwrapped(monkeypatch):
+    """A NameError from our own code must NOT be disguised as 'Gemini request failed'."""
+
+    class TyposquatAgent(_FakeAgent):
+        async def chat(self, query):
+            # Simulate a programmer error inside our wrapper, not an SDK failure.
+            raise NameError("undefined_helper")
+
+    _install_fake_sdk(monkeypatch, agent_cls=TyposquatAgent)
+    from tailorcv.llm.google_client import GoogleClient
+
+    with pytest.raises(NameError):
+        GoogleClient(_cfg()).generate("S", "U", "KB")
+
+
+def test_thinking_tokens_count_as_output(monkeypatch):
+    """Gemini 2.5 Flash routes some output to thoughts_token_count — Google bills
+    those as output, so the Usage record must include them in output_tokens."""
+
+    class ThinkingAgent(_FakeAgent):
+        def __init__(self, config):
+            super().__init__(config)
+            self.conversation = _FakeConversation(
+                _FakeUsage(prompt=50, candidates=10, thoughts=200)
+            )
+
+    _install_fake_sdk(monkeypatch, agent_cls=ThinkingAgent)
+    from tailorcv.llm.google_client import GoogleClient
+
+    _, usage = GoogleClient(_cfg()).generate("S", "U", "KB")
+    assert usage.input_tokens == 50
+    assert usage.output_tokens == 210  # 10 candidates + 200 thoughts
+
+
+def test_gemini_api_key_is_scoped_not_leaked(monkeypatch):
+    """The SDK reads GEMINI_API_KEY from env; we must restore prior value on exit."""
+    import os as _os
+
+    monkeypatch.setenv("GEMINI_API_KEY", "previous-value")
+    _install_fake_sdk(monkeypatch)
+    from tailorcv.llm.google_client import GoogleClient
+
+    GoogleClient(_cfg(gemini_key="call-scoped")).generate("S", "U", "KB")
+    assert _os.environ["GEMINI_API_KEY"] == "previous-value"
+
+
+def test_gemini_api_key_cleared_when_originally_unset(monkeypatch):
+    """If GEMINI_API_KEY wasn't set before the call, it must be unset after."""
+    import os as _os
+
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    _install_fake_sdk(monkeypatch)
+    from tailorcv.llm.google_client import GoogleClient
+
+    GoogleClient(_cfg(gemini_key="call-scoped")).generate("S", "U", "KB")
+    assert "GEMINI_API_KEY" not in _os.environ
+
+
+def test_client_exposes_model_attribute(monkeypatch):
+    _install_fake_sdk(monkeypatch)
+    from tailorcv.llm.google_client import GoogleClient
+
+    assert GoogleClient(_cfg()).model == "gemini-2.5-flash"

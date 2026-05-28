@@ -14,6 +14,7 @@ class AnthropicClient:
 
     def __init__(self, cfg: Config) -> None:
         self._cfg = cfg
+        self.model = self.MODEL  # satisfies LLMClient.model
 
     @staticmethod
     def _system_blocks(system_prompt: str, kb: str, cache: bool) -> list[dict]:

@@ -6,12 +6,18 @@ RUN := $(COMPOSE) run --rm app
 PROVIDER_ARG := $(if $(PROVIDER),--provider $(PROVIDER))
 
 # Pick exactly one input source. URL wins, then FILE, then TEXT.
+# FILE is read from the host: we mount it into the container at a fixed path
+# because docker-compose.yml only bind-mounts a curated set of subdirs, not the
+# whole repo root.
 ifdef URL
 INPUT_ARG := --url "$(URL)"
+INPUT_RUN := $(RUN)
 else ifdef FILE
-INPUT_ARG := --text-file "$(FILE)"
+INPUT_ARG := --text-file /app/inputs/job-ad.txt
+INPUT_RUN := $(COMPOSE) run --rm -v "$(abspath $(FILE))":/app/inputs/job-ad.txt:ro app
 else ifdef TEXT
 INPUT_ARG := --text "$(TEXT)"
+INPUT_RUN := $(RUN)
 endif
 
 .PHONY: build generate cv-only letter-only tokens shell test
@@ -25,13 +31,13 @@ build:
 #   make generate TEXT="paste the job ad here"
 # Append PROVIDER=google to route to Gemini for any of the above.
 generate:
-	$(RUN) python -m tailorcv generate $(INPUT_ARG) $(PROVIDER_ARG)
+	$(INPUT_RUN) python -m tailorcv generate $(INPUT_ARG) $(PROVIDER_ARG)
 
 cv-only:
-	$(RUN) python -m tailorcv generate $(INPUT_ARG) $(PROVIDER_ARG) --cv-only
+	$(INPUT_RUN) python -m tailorcv generate $(INPUT_ARG) $(PROVIDER_ARG) --cv-only
 
 letter-only:
-	$(RUN) python -m tailorcv generate $(INPUT_ARG) $(PROVIDER_ARG) --letter-only
+	$(INPUT_RUN) python -m tailorcv generate $(INPUT_ARG) $(PROVIDER_ARG) --letter-only
 
 tokens:
 	$(RUN) python -m tailorcv kb-tokens

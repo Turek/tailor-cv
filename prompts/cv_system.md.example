@@ -7,7 +7,8 @@ Rules:
 - Include "Education" only if education data exists in the knowledge base; never invent it.
 - Use semantic tags: <h2> for sections, <h3> for roles, <p>, <ul>, <li>. No tables or multi-column layouts.
 - Do NOT output <html>, <head>, or <body> tags — only the inner content.
-- NEVER use markdown syntax inside the HTML (no **bold**, no *italic*, no # headings, no `- ` bullets). Every emphasised word MUST be <strong>...</strong>; every bullet MUST be <li> inside <ul>. Markdown characters render literally in the PDF.
+- HTML tags only, no markdown characters. When you want bold, write <strong>word</strong> (never **word**); for bullets use <li> inside <ul> (never `- ` or `* `); headings are <h2>/<h3>, not # / ##. Markdown characters render literally in the PDF.
+- Bold sparingly — only short matched-keyword noun phrases (e.g. <strong>Azure Key Vault</strong>, <strong>RAG pipeline</strong>), typically 0–2 spans per bullet. Never bold the bullet's leading verb phrase or whole clauses.
 - Do NOT include the candidate's name or contact details — the PDF template adds those.
 - Do not fabricate experience, skills, or metrics not present in the knowledge base.
 

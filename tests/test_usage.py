@@ -1,13 +1,15 @@
 from types import SimpleNamespace
 from tailorcv import usage
+from tailorcv.llm import Usage
 
 
 def _u(inp, out, cw=0, cr=0):
+    # Helper uses the new Usage-aligned field names (cache_write / cache_read).
     return SimpleNamespace(
         input_tokens=inp,
         output_tokens=out,
-        cache_creation_input_tokens=cw,
-        cache_read_input_tokens=cr,
+        cache_write=cw,
+        cache_read=cr,
     )
 
 
@@ -50,3 +52,19 @@ def test_summarize_unknown_model_notes_no_pricing():
     assert "mystery-model" in s
     # cost unavailable wording — must NOT print a fake "$" amount for unknown model
     assert "n/a" in s.lower() or "unavailable" in s.lower()
+
+
+def test_summarize_omits_cache_lines_when_all_none():
+    u = Usage(input_tokens=100, output_tokens=50)
+    out = usage.summarize([u], model="gemini-2.5-flash")
+    assert "input(uncached) 100" in out
+    assert "output 50" in out
+    assert "cache-write" not in out
+    assert "cache-read" not in out
+
+
+def test_summarize_includes_cache_lines_when_any_present():
+    u = Usage(input_tokens=100, output_tokens=50, cache_read=10, cache_write=20)
+    out = usage.summarize([u], model="claude-sonnet-4-6")
+    assert "cache-write 20" in out
+    assert "cache-read 10" in out

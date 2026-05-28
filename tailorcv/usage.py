@@ -8,6 +8,8 @@ PRICING: dict[str, tuple[float, float]] = {
     "claude-opus-4-7": (5.0, 25.0),
     "claude-opus-4-6": (5.0, 25.0),
     "claude-haiku-4-5": (1.0, 5.0),
+    # Gemini Flash 2.5 paid tier (AI Studio free tier costs $0).
+    "gemini-2.5-flash": (0.30, 2.50),
 }
 
 

@@ -11,7 +11,7 @@ import click
 from .config import load_config
 from .knowledge_base import load_kb, count_tokens, check_budget
 from .job_input import resolve
-from . import generator, pdf, usage
+from . import generator, logging_setup, pdf, usage
 
 
 @contextlib.contextmanager
@@ -45,6 +45,9 @@ def _base_name(job) -> str:
 @click.group()
 def main() -> None:
     """Tailor CV — generate ATS-tailored CVs and cover letters with Claude."""
+    # Tame third-party logging (fontTools subsetter, google.antigravity retries, …)
+    # before any subcommand runs so they can't flood the terminal.
+    logging_setup.configure()
 
 
 @main.command("kb-tokens")

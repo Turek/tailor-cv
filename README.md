@@ -13,7 +13,58 @@ This is a from-scratch rewrite of an earlier over-engineered Drupal application;
 Only **Docker** and **make** on the host. Everything else (Python, WeasyPrint and its native
 libraries, the Anthropic and Firecrawl SDKs, …) lives inside the Docker image — your host stays clean.
 
+## Using the guided skill
+
+`tailor-cv-knowledge-base` is a Claude Code-format skill, shipped in this repo at `skills/tailor-cv-knowledge-base/`, that automates the manual onboarding below — it reads your CV PDF and walks you through populating `.env`, `profile.yaml`, and `knowledge_base/*.md` via interview, then helps you customize `prompts/*.md`.
+
+Three subcommands:
+
+| Command | What it does |
+|---|---|
+| `/tailor-cv-knowledge-base init` | First-time setup from a CV PDF |
+| `/tailor-cv-knowledge-base prompts` | Customize the four `prompts/*.md` files via interview |
+| `/tailor-cv-knowledge-base expand <NN>` | Deepen one KB chunk (e.g. `expand 02`) via STAR-format interview |
+
+### Install per agent host
+
+All hosts read the same `skills/tailor-cv-knowledge-base/SKILL.md` plus its `references/` directory — only the discovery mechanism differs. Run these from the `tailor-cv` checkout root.
+
+**Claude Code** (auto-discovers project plugins):
+
+```bash
+# Already done — .claude-plugin/plugin.json + skills/ are committed.
+# Start a Claude Code session in this directory; the skill appears as
+# /tailor-cv-knowledge-base in the slash-command list.
+claude
+```
+
+If your global config disables project plugins, enable it in `~/.claude/settings.json` with `"enableProjectPlugins": true`.
+
+**Claude Cowork** (the cloud workspace / claude.ai/code): upload the `skills/tailor-cv-knowledge-base/` directory as a custom skill in the workspace's skill settings, or — once Cowork supports `.claude-plugin/` repo-level discovery — connect this repo and accept the project plugin. Verify the current Cowork docs for the exact mechanism; the skill content itself is unchanged.
+
+**Codex CLI** (`@openai/codex`): symlink the skill into Codex's skill directory (skills follow the same `SKILL.md` + frontmatter convention):
+
+```bash
+mkdir -p ~/.codex/skills
+ln -s "$PWD/skills/tailor-cv-knowledge-base" ~/.codex/skills/tailor-cv-knowledge-base
+```
+
+Then invoke from a Codex session as `/tailor-cv-knowledge-base init`. Confirm against current Codex docs — the `~/.codex/skills/` path is the established convention but may move.
+
+**Antigravity (Google)**: at the time of writing Antigravity loads skills from a project-local `.antigravity/skills/` directory (mirroring the Claude Code convention). Symlink in:
+
+```bash
+mkdir -p .antigravity/skills
+ln -s "../../skills/tailor-cv-knowledge-base" .antigravity/skills/tailor-cv-knowledge-base
+```
+
+If Antigravity has rolled out a different discovery path by the time you read this, point its skill loader at `skills/tailor-cv-knowledge-base/SKILL.md` — the file format is the same.
+
+**Other agents** (Cursor, OpenCode, Cline, …): drop a symlink to `skills/tailor-cv-knowledge-base/` into whatever skill / prompt-pack directory the agent reads. The file format is plain markdown + YAML frontmatter, no agent-specific extensions.
+
 ## First-run setup
+
+> **Prefer guided setup?** See [Using the guided skill](#using-the-guided-skill) above — `/tailor-cv-knowledge-base init` replaces steps 1–4 of the checklist below.
 
 ```bash
 # 1. Secrets

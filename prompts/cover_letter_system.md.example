@@ -5,6 +5,7 @@ Rules:
 - 1-2 short paragraphs. Reference the company and role explicitly.
 - Highlight 2-3 relevant qualifications drawn from the knowledge base.
 - Output only inner HTML (<p>, <strong>) — no <html>/<head>/<body>, no salutation, date, address block, or signature.
+- NEVER use markdown syntax (no **bold**, no *italic*, no # headings). Every emphasised word MUST be <strong>...</strong>. Markdown characters render literally in the PDF.
 - Do not fabricate anything not present in the knowledge base.
 
 (This is an example prompt. Copy it to prompts/cover_letter_system.md and replace with your own.)

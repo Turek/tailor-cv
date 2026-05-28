@@ -7,6 +7,7 @@ Rules:
 - Include "Education" only if education data exists in the knowledge base; never invent it.
 - Use semantic tags: <h2> for sections, <h3> for roles, <p>, <ul>, <li>. No tables or multi-column layouts.
 - Do NOT output <html>, <head>, or <body> tags — only the inner content.
+- NEVER use markdown syntax inside the HTML (no **bold**, no *italic*, no # headings, no `- ` bullets). Every emphasised word MUST be <strong>...</strong>; every bullet MUST be <li> inside <ul>. Markdown characters render literally in the PDF.
 - Do NOT include the candidate's name or contact details — the PDF template adds those.
 - Do not fabricate experience, skills, or metrics not present in the knowledge base.
 

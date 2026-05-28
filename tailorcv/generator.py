@@ -1,10 +1,17 @@
-"""LLM generation: build cached prompts, call Anthropic, return inner HTML."""
+"""LLM dispatch: build prompts, call the configured backend, return inner HTML."""
 from __future__ import annotations
 
-import anthropic
+import re
 
 from .config import Config
+from .llm import LLMClient, Usage, get_client
 from . import prompts
+
+
+# Match a `**…**` pair on a single line with non-empty, non-asterisk content.
+# Non-greedy, no newline inside, and the inner text must contain at least one
+# non-whitespace char — so stray `**` or empty pairs are left alone.
+_MD_BOLD = re.compile(r"\*\*(?=\S)([^*\n]+?)(?<=\S)\*\*")
 
 
 def _strip_code_fence(text: str) -> str:
@@ -23,52 +30,36 @@ def _strip_code_fence(text: str) -> str:
     return "\n".join(lines).strip()
 
 
-def _system_blocks(system_prompt: str, kb: str, cache: bool) -> list[dict]:
-    # The KB is block 0 (the large, shared prefix); the small per-document role instruction
-    # follows it (block 1). Caching only helps when the SAME KB is sent twice within the TTL
-    # — i.e. a single run generating BOTH the CV and the cover letter (call 1 writes ~1.25x,
-    # call 2 reads ~0.1x → cheaper than 2x uncached). For a single-document run the cache
-    # would only ever be written (1.25x) and never read, so `cache` is False there and we
-    # pay the plain 1x rate — no wasted cache-write premium.
-    kb_block = {
-        "type": "text",
-        "text": (
-            "## Candidate's Professional Knowledge Base\n\n"
-            "The following is the candidate's complete professional knowledge "
-            "base: rich narrative descriptions of their roles, projects, and "
-            "achievements. Select and synthesise the most relevant evidence for "
-            "the target role. Do not use information that is not present here.\n\n"
-            f"{kb}"
-        ),
-    }
-    if cache:
-        kb_block["cache_control"] = {"type": "ephemeral"}
-    return [kb_block, {"type": "text", "text": system_prompt}]
+def _markdown_bold_to_html(text: str) -> str:
+    """Rewrite ``**text**`` markdown bold as ``<strong>text</strong>``.
+
+    The model is told to emit raw HTML, but Gemini in particular sometimes
+    slips into markdown for emphasis — leaving literal ``**foo**`` in the PDF.
+    Converting after the model returns is bulletproof regardless of which
+    backend misbehaves; HTML ``<strong>`` already in the output is untouched
+    because the regex requires literal ``**`` markers.
+    """
+    return _MD_BOLD.sub(r"<strong>\1</strong>", text)
 
 
 def _generate(
-    system_prompt: str, user_prompt: str, kb: str, cfg: Config, cache: bool = False
-) -> tuple:
-    client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
-    try:
-        resp = client.messages.create(
-            model=cfg.model,
-            max_tokens=cfg.max_output_tokens,
-            system=_system_blocks(system_prompt, kb, cache),
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-    except anthropic.APIError as e:
-        raise SystemExit(f"Claude request failed: {e}") from e
-    html = "".join(
-        block.text for block in resp.content if block.type == "text"
-    ).strip()
-    html = _strip_code_fence(html)
+    system_prompt: str,
+    user_prompt: str,
+    kb: str,
+    cfg: Config,
+    cache: bool,
+) -> tuple[str, Usage]:
+    client: LLMClient = get_client(cfg)
+    text, usage = client.generate(system_prompt, user_prompt, kb, cache=cache)
+    html = _markdown_bold_to_html(_strip_code_fence(text))
     if not html:
         raise SystemExit("Model returned empty content; no document generated.")
-    return html, resp.usage
+    return html, usage
 
 
-def generate_cv(job_description: str, kb: str, cfg: Config, cache: bool = False) -> tuple:
+def generate_cv(
+    job_description: str, kb: str, cfg: Config, cache: bool = False
+) -> tuple[str, Usage]:
     return _generate(
         prompts.cv_system_prompt(),
         prompts.build_cv_user_prompt(job_description),
@@ -80,7 +71,7 @@ def generate_cv(job_description: str, kb: str, cfg: Config, cache: bool = False)
 
 def generate_cover_letter(
     job_description: str, kb: str, cfg: Config, cache: bool = False
-) -> tuple:
+) -> tuple[str, Usage]:
     return _generate(
         prompts.cover_letter_system_prompt(),
         prompts.build_letter_user_prompt(job_description),

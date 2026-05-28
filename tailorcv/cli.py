@@ -11,7 +11,8 @@ import click
 from .config import load_config
 from .knowledge_base import load_kb, count_tokens, check_budget
 from .job_input import resolve
-from . import generator, pdf, usage
+from .llm import get_client
+from . import generator, logging_setup, pdf, usage
 
 
 @contextlib.contextmanager
@@ -45,13 +46,16 @@ def _base_name(job) -> str:
 @click.group()
 def main() -> None:
     """Tailor CV — generate ATS-tailored CVs and cover letters with Claude."""
+    # Tame third-party logging (fontTools subsetter, google.antigravity retries, …)
+    # before any subcommand runs so they can't flood the terminal.
+    logging_setup.configure()
 
 
 @main.command("kb-tokens")
 def kb_tokens() -> None:
     cfg = load_config()
     kb = load_kb()
-    n = count_tokens(kb, cfg.model, cfg.anthropic_api_key)
+    n = count_tokens(kb, cfg.anthropic_api_key)
     click.echo(f"Knowledge base: {n:,} tokens (budget {cfg.token_budget:,}).")
     warn = check_budget(n, cfg.token_budget)
     if warn:
@@ -65,17 +69,22 @@ def kb_tokens() -> None:
 @click.option("--cv-only", is_flag=True)
 @click.option("--letter-only", is_flag=True)
 @click.option("--output-dir", default="output")
-@click.option("--model", default=None)
-def generate(url, text, text_file, cv_only, letter_only, output_dir, model) -> None:
+@click.option(
+    "--provider",
+    type=click.Choice(["anthropic", "google"]),
+    default=None,
+    help="LLM backend. Default comes from TAILORCV_PROVIDER (anthropic).",
+)
+def generate(url, text, text_file, cv_only, letter_only, output_dir, provider) -> None:
     if cv_only and letter_only:
         raise click.UsageError("--cv-only and --letter-only are mutually exclusive.")
     cfg = load_config()
-    if model:
-        cfg = cfg.model_copy(update={"model": model})
+    if provider:
+        cfg = cfg.model_copy(update={"provider": provider})
 
     with _step("Loading knowledge base"):
         kb = load_kb()
-        token_count = count_tokens(kb, cfg.model, cfg.anthropic_api_key)
+        token_count = count_tokens(kb, cfg.anthropic_api_key)
     warn = check_budget(token_count, cfg.token_budget)
     if warn:
         click.secho(warn, fg="yellow", err=True)
@@ -109,7 +118,8 @@ def generate(url, text, text_file, cv_only, letter_only, output_dir, model) -> N
             )
 
     if usages:
-        for line in usage.summarize(usages, cfg.model).splitlines():
+        # Single source of truth for the provider→model mapping: the client itself.
+        for line in usage.summarize(usages, get_client(cfg).model).splitlines():
             click.secho(line, bold=True)
     for p in saved:
         click.secho(f"Saved: {p}", fg="cyan")

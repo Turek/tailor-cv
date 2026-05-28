@@ -45,7 +45,7 @@ def test_count_tokens_uses_client(monkeypatch):
             self.messages = FakeMessages()
 
     monkeypatch.setattr("anthropic.Anthropic", FakeClient)
-    assert count_tokens("hello", "claude-sonnet-4-6", "sk-ant-test") == 1234
+    assert count_tokens("hello", "sk-ant-test") == 1234
 
 
 def test_count_tokens_wraps_api_errors_as_systemexit(monkeypatch):
@@ -62,4 +62,4 @@ def test_count_tokens_wraps_api_errors_as_systemexit(monkeypatch):
 
     monkeypatch.setattr("anthropic.Anthropic", FakeClient)
     with pytest.raises(SystemExit):
-        count_tokens("hello", "claude-sonnet-4-6", "sk-ant-test")
+        count_tokens("hello", "sk-ant-test")

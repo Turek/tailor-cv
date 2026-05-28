@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from dotenv import load_dotenv
@@ -26,11 +27,15 @@ class Profile(BaseModel):
     cv_footer: str = ""
 
 
+Provider = Literal["anthropic", "google"]
+
+
 class Config(BaseModel):
     profile: Profile
     anthropic_api_key: str
+    gemini_api_key: str = ""
     firecrawl_api_key: str = ""
-    model: str = "claude-sonnet-4-6"
+    provider: Provider = "anthropic"
     token_budget: int = 70000
     max_output_tokens: int = 4096
 
@@ -43,6 +48,15 @@ def _int_env(key: str, default: int) -> int:
         return int(raw)
     except ValueError:
         raise SystemExit(f"{key} must be an integer, got: {raw!r}")
+
+
+def _provider_env() -> Provider:
+    raw = os.environ.get("TAILORCV_PROVIDER", "anthropic").strip().lower() or "anthropic"
+    if raw not in ("anthropic", "google"):
+        raise SystemExit(
+            f"TAILORCV_PROVIDER must be 'anthropic' or 'google', got: {raw!r}"
+        )
+    return raw  # type: ignore[return-value]
 
 
 def load_config(
@@ -66,8 +80,9 @@ def load_config(
     return Config(
         profile=Profile(**profile_data),
         anthropic_api_key=api_key,
+        gemini_api_key=os.environ.get("GEMINI_API_KEY", "").strip(),
         firecrawl_api_key=os.environ.get("FIRECRAWL_API_KEY", "").strip(),
-        model=os.environ.get("TAILORCV_MODEL", "claude-sonnet-4-6").strip(),
+        provider=_provider_env(),
         token_budget=_int_env("TAILORCV_TOKEN_BUDGET", 70000),
         max_output_tokens=_int_env("TAILORCV_MAX_OUTPUT_TOKENS", 4096),
     )

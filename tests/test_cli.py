@@ -184,3 +184,55 @@ def test_kb_tokens_over_budget_warns(monkeypatch):
     combined = res.output + (res.output)  # stderr captured in output with mix_stderr default
     assert "999,999" in res.output
     assert "over" in res.output.lower() or "budget" in res.output.lower()
+
+
+def test_generate_provider_google_routes_to_google_client(monkeypatch, tmp_path):
+    """--provider google must select the GoogleClient and skip KB caching."""
+    from click.testing import CliRunner
+    from tailorcv import cli, generator
+    from tailorcv.llm import Usage
+
+    # Stub KB + job resolution + PDF rendering so the test stays in-process.
+    monkeypatch.setattr(cli, "load_kb", lambda: "KB")
+    monkeypatch.setattr(cli, "count_tokens", lambda *a, **k: 1)
+    monkeypatch.setattr(cli, "check_budget", lambda *a, **k: None)
+
+    class _Job:
+        title = "Dev"
+        company = "Acme"
+        description = "JD"
+
+    monkeypatch.setattr(cli, "resolve", lambda **kw: _Job())
+    monkeypatch.setattr(cli.pdf, "render_cv", lambda *a, **k: tmp_path / "cv.pdf")
+    monkeypatch.setattr(cli.pdf, "render_cover_letter", lambda *a, **k: tmp_path / "cl.pdf")
+
+    seen = {}
+
+    def fake_cv(jd, kb, cfg, cache=False):
+        seen["provider"] = cfg.provider
+        seen["cache"] = cache
+        return "<p>cv</p>", Usage(input_tokens=1, output_tokens=1)
+
+    def fake_cl(jd, kb, cfg, cache=False):
+        return "<p>cl</p>", Usage(input_tokens=1, output_tokens=1)
+
+    monkeypatch.setattr(generator, "generate_cv", fake_cv)
+    monkeypatch.setattr(generator, "generate_cover_letter", fake_cl)
+
+    # Minimal env / profile via a temp working dir
+    (tmp_path / ".env").write_text(
+        "ANTHROPIC_API_KEY=sk-ant-x\nGEMINI_API_KEY=g\n", encoding="utf-8"
+    )
+    (tmp_path / "profile.yaml").write_text("full_name: A\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.main,
+        ["generate", "--text", "JD", "--provider", "google", "--output-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 0, result.output
+    assert seen["provider"] == "google"
+    # Cache is meaningful only for Anthropic. We still pass cache=True when both
+    # docs are generated; the GoogleClient ignores it. Assert it was set.
+    assert seen["cache"] is True

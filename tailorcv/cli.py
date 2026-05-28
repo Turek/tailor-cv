@@ -65,13 +65,18 @@ def kb_tokens() -> None:
 @click.option("--cv-only", is_flag=True)
 @click.option("--letter-only", is_flag=True)
 @click.option("--output-dir", default="output")
-@click.option("--model", default=None)
-def generate(url, text, text_file, cv_only, letter_only, output_dir, model) -> None:
+@click.option(
+    "--provider",
+    type=click.Choice(["anthropic", "google"]),
+    default=None,
+    help="LLM backend. Default comes from TAILORCV_PROVIDER (anthropic).",
+)
+def generate(url, text, text_file, cv_only, letter_only, output_dir, provider) -> None:
     if cv_only and letter_only:
         raise click.UsageError("--cv-only and --letter-only are mutually exclusive.")
     cfg = load_config()
-    if model:
-        cfg = cfg.model_copy(update={"model": model})
+    if provider:
+        cfg = cfg.model_copy(update={"provider": provider})
 
     with _step("Loading knowledge base"):
         kb = load_kb()
@@ -109,7 +114,11 @@ def generate(url, text, text_file, cv_only, letter_only, output_dir, model) -> N
             )
 
     if usages:
-        for line in usage.summarize(usages, cfg.model).splitlines():
+        # Pricing table is keyed by the per-provider pinned model id.
+        model_label = (
+            "gemini-2.5-flash" if cfg.provider == "google" else "claude-sonnet-4-6"
+        )
+        for line in usage.summarize(usages, model_label).splitlines():
             click.secho(line, bold=True)
     for p in saved:
         click.secho(f"Saved: {p}", fg="cyan")

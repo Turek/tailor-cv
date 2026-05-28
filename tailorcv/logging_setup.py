@@ -15,10 +15,16 @@ import re
 import click
 
 
-# Match the Antigravity SDK's retryable error log lines (HTTP 5xx, "retryable",
-# "high demand"). Case-insensitive so any reasonable wording is caught.
+# Match the Antigravity SDK's retryable-step warning. The SDK uses a single
+# canonical template at local_connection.py:585 —
+#     logging.warning("System step error (HTTP %s): %s", http_code, error)
+# — for every retryable failure: HTTP 5xx ("high demand"), HTTP 0 (transport-
+# level), and "Model produced invalid output" responses that the SDK then
+# retries. Matching on the prefix catches the whole category at once.
+# We keep "retryable" / "high demand" as fallbacks in case the SDK ever
+# reformats the line.
 _RETRYABLE = re.compile(
-    r"retryable|high demand|HTTP\s*5\d{2}|code\s*5\d{2}", re.IGNORECASE
+    r"System step error|retryable|high demand", re.IGNORECASE
 )
 
 

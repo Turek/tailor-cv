@@ -70,6 +70,27 @@ def test_retryable_warning_becomes_yellow_retry_chip():
     assert "\x1b[33m" in result.output
 
 
+def test_retry_chip_catches_http_0_invalid_output():
+    """HTTP 0 / 'Model produced invalid output' is also a retryable category."""
+    _reset_root()
+    logging_setup.configure()
+    log = logging.getLogger("root")
+
+    runner = CliRunner()
+
+    @click.command()
+    def emit():
+        log.warning(
+            'System step error (HTTP 0): Model produced invalid output. '
+            '("model output error: ...")'
+        )
+
+    result = runner.invoke(emit, color=True)
+    assert "retry…" in result.output
+    assert "System step error" not in result.output
+    assert "Model produced invalid output" not in result.output
+
+
 def test_non_retryable_warning_passes_through(capsys):
     """A genuine warning unrelated to retries still surfaces."""
     _reset_root()

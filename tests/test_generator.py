@@ -75,6 +75,49 @@ def test_generate_strips_fence_from_model_output(monkeypatch):
     assert html == "<p>x</p>"
 
 
+def test_markdown_bold_to_html_converts_pairs():
+    f = generator._markdown_bold_to_html
+    assert f("Built a **scalable** system.") == "Built a <strong>scalable</strong> system."
+    # Multiple pairs in one string.
+    assert (
+        f("**Sedno**, a **multilingual** app")
+        == "<strong>Sedno</strong>, a <strong>multilingual</strong> app"
+    )
+    # Phrase with spaces and punctuation inside.
+    assert f("**5–10 seconds**") == "<strong>5–10 seconds</strong>"
+
+
+def test_markdown_bold_to_html_leaves_html_strong_alone():
+    f = generator._markdown_bold_to_html
+    assert f("Already <strong>bold</strong>.") == "Already <strong>bold</strong>."
+
+
+def test_markdown_bold_to_html_ignores_unbalanced_markers():
+    f = generator._markdown_bold_to_html
+    # Single trailing `**` with no opening pair — leave unchanged.
+    assert f("price: 5**") == "price: 5**"
+    # Empty `**` pair — leave unchanged (don't emit empty <strong/>).
+    assert f("a ** ** b") == "a ** ** b"
+
+
+def test_markdown_bold_to_html_does_not_cross_newlines():
+    f = generator._markdown_bold_to_html
+    # A stray `**` should not greedily span paragraphs.
+    src = "intro **foo\n\nlater paragraph** more"
+    assert f(src) == src
+
+
+def test_generate_converts_markdown_bold_in_model_output(monkeypatch):
+    fake = _FakeClient("<p>Founded **Sedno**, a **scalable** system.</p>")
+    monkeypatch.setattr(generator, "get_client", lambda cfg: fake)
+    monkeypatch.setattr(generator.prompts, "cv_system_prompt", lambda: "SYS")
+    monkeypatch.setattr(generator.prompts, "build_cv_user_prompt", lambda jd: "U")
+    html, _ = generator.generate_cv("JOB", "KB", _cfg())
+    assert "**" not in html
+    assert "<strong>Sedno</strong>" in html
+    assert "<strong>scalable</strong>" in html
+
+
 def test_generate_empty_content_raises(monkeypatch):
     fake = _FakeClient("")
     monkeypatch.setattr(generator, "get_client", lambda cfg: fake)

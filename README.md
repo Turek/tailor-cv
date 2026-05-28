@@ -19,6 +19,7 @@ libraries, the Anthropic and Firecrawl SDKs, …) lives inside the Docker image 
 # 1. Secrets
 cp .env.example .env
 #    edit .env → set ANTHROPIC_API_KEY (required)
+#    and GEMINI_API_KEY (only if you use --provider google)
 #    and FIRECRAWL_API_KEY (only if you use --url)
 
 # 2. Your contact/header/footer data
@@ -48,6 +49,18 @@ make generate TEXT="$(cat job.txt)"
 # 8. PDFs land in output/
 ```
 
+### Picking a provider
+
+`tailorcv` can route the same prompts to either Anthropic Claude (default) or
+Google Gemini via the `google-antigravity` SDK. Pass `--provider google` to
+switch, or set `TAILORCV_PROVIDER=google` in `.env`. The Google path needs
+`GEMINI_API_KEY` (get one at https://aistudio.google.com/apikey). Models are
+fixed: `claude-sonnet-4-6` for Anthropic, `gemini-2.5-flash` for Google.
+
+```bash
+docker compose run --rm app tailorcv generate --provider google --text "…"
+```
+
 ## Make targets
 
 | Target | What it does |
@@ -69,7 +82,7 @@ For job ads with shell-hostile characters, write the ad to a file and use the CL
 ```
 python -m tailorcv generate (--url URL | --text TEXT | --text-file PATH)
                             [--cv-only] [--letter-only]
-                            [--output-dir DIR] [--model MODEL]
+                            [--output-dir DIR] [--provider PROVIDER]
 python -m tailorcv kb-tokens
 ```
 
@@ -92,8 +105,9 @@ profile.yaml ──────┘   pdf.render_*()  (WeasyPrint) ──► outp
 ```
 
 The system prompt + full knowledge base are sent as a cached block, identical across the CV and
-cover-letter calls, so the second call bills the knowledge base at the cache-read rate. Default model
-is `claude-sonnet-4-6` (override per-run with `--model`, or globally via `TAILORCV_MODEL` in `.env`).
+cover-letter calls, so the second call bills the knowledge base at the cache-read rate. Models are
+fixed per provider: `claude-sonnet-4-6` (Anthropic) and `gemini-2.5-flash` (Google). Switch with
+`--provider` or `TAILORCV_PROVIDER` in `.env`.
 
 ## Privacy / what is and isn't committed
 
@@ -115,9 +129,10 @@ tuned prompts live in the gitignored `prompts/*.md` and stay local.
 
 | Variable | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | Required. Used for generation and `kb-tokens`. |
+| `ANTHROPIC_API_KEY` | Required. Used for generation (Anthropic provider) and always for `kb-tokens`. |
+| `GEMINI_API_KEY` | Required only when `--provider google`. |
+| `TAILORCV_PROVIDER` | Default LLM backend: `anthropic` (default) or `google`. |
 | `FIRECRAWL_API_KEY` | Required only for `--url`. |
-| `TAILORCV_MODEL` | Model id (default `claude-sonnet-4-6`). |
 | `TAILORCV_TOKEN_BUDGET` | KB soft limit; `make tokens`/`generate` warn (don't fail) when exceeded. |
 | `TAILORCV_MAX_OUTPUT_TOKENS` | Output cap per document. |
 

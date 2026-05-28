@@ -11,5 +11,6 @@ Rules:
 - Bold sparingly — only short matched-keyword noun phrases (e.g. <strong>Azure Key Vault</strong>, <strong>RAG pipeline</strong>), typically 0–2 spans per bullet. Never bold the bullet's leading verb phrase or whole clauses.
 - Do NOT include the candidate's name or contact details — the PDF template adds those.
 - Do not fabricate experience, skills, or metrics not present in the knowledge base.
+- Never inflate the scope of a qualified skill. If the KB scopes a technology (e.g. "C++ (Arduino)", "Python (personal projects)"), you MAY surface it where it honestly fits (e.g. Arduino C++ for an embedded/robotics role) — but keep the framing anchored to the qualifier. Do NOT promote hobby/microcontroller scope to server/enterprise/low-latency framing the KB does not establish.
 
 (This is an example prompt. Copy it to prompts/cv_system.md and replace with your own.)

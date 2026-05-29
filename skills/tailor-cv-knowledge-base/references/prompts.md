@@ -53,4 +53,18 @@ Re-read `prompts/cv_user.md` and `prompts/letter_user.md` after writing. Confirm
 
 ## Phase 6 — Verify
 
-Run `make tokens` from `$PROJECT`. The KB unchanged here, but this confirms `.env` + `profile.yaml` still load cleanly. `make tokens` doesn't exercise prompts directly, so additionally `grep -l "{{JOB_DESCRIPTION}}" prompts/cv_user.md prompts/letter_user.md` and report. Tell the user they can do a dry generation with `make generate TEXT="dummy job ad"` to fully exercise the prompts.
+Skip `make tokens` here — it costs an Anthropic API round-trip and `prompts` didn't touch the KB, so the count won't change. Run the targeted checks that actually exercise what `prompts` changed:
+
+1. Confirm the `{{JOB_DESCRIPTION}}` placeholder survived in both user prompts:
+   ```bash
+   grep -l '{{JOB_DESCRIPTION}}' "$PROJECT/prompts/cv_user.md" "$PROJECT/prompts/letter_user.md"
+   ```
+   Expected output: both filenames. If either is missing, you skipped Phase 5 — go back.
+
+2. Confirm all four prompts load through `tailorcv/prompts.py` without raising (this catches empty files, missing placeholders, and missing files in one shot):
+   ```bash
+   docker compose run --rm app python -c \
+     'from tailorcv.prompts import cv_system_prompt, cover_letter_system_prompt, build_cv_user_prompt, build_letter_user_prompt; cv_system_prompt(); cover_letter_system_prompt(); build_cv_user_prompt("x"); build_letter_user_prompt("x"); print("prompts: OK")'
+   ```
+
+Tell the user they can do a fuller dry run with `make generate TEXT="dummy job ad"` whenever they want to exercise the prompts end-to-end (that one DOES cost an API call).

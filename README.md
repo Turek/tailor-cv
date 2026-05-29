@@ -40,27 +40,13 @@ claude
 
 If your global config disables project plugins, enable it in `~/.claude/settings.json` with `"enableProjectPlugins": true`.
 
-**Claude Cowork** (the cloud workspace / claude.ai/code): upload the `skills/tailor-cv-knowledge-base/` directory as a custom skill in the workspace's skill settings, or — once Cowork supports `.claude-plugin/` repo-level discovery — connect this repo and accept the project plugin. Verify the current Cowork docs for the exact mechanism; the skill content itself is unchanged.
+**Other agent hosts** (Claude Cowork, Codex CLI, Google Antigravity, Cursor, OpenCode, Cline, …): the skill is plain markdown with YAML frontmatter — no Claude-Code-specific extensions. If your host supports custom skills / prompts / instructions, point it at:
 
-**Codex CLI** (`@openai/codex`): symlink the skill into Codex's skill directory (skills follow the same `SKILL.md` + frontmatter convention):
-
-```bash
-mkdir -p ~/.codex/skills
-ln -s "$PWD/skills/tailor-cv-knowledge-base" ~/.codex/skills/tailor-cv-knowledge-base
+```
+skills/tailor-cv-knowledge-base/SKILL.md
 ```
 
-Then invoke from a Codex session as `/tailor-cv-knowledge-base init`. Confirm against current Codex docs — the `~/.codex/skills/` path is the established convention but may move.
-
-**Antigravity (Google)**: at the time of writing Antigravity loads skills from a project-local `.antigravity/skills/` directory (mirroring the Claude Code convention). Symlink in:
-
-```bash
-mkdir -p .antigravity/skills
-ln -s "../../skills/tailor-cv-knowledge-base" .antigravity/skills/tailor-cv-knowledge-base
-```
-
-If Antigravity has rolled out a different discovery path by the time you read this, point its skill loader at `skills/tailor-cv-knowledge-base/SKILL.md` — the file format is the same.
-
-**Other agents** (Cursor, OpenCode, Cline, …): drop a symlink to `skills/tailor-cv-knowledge-base/` into whatever skill / prompt-pack directory the agent reads. The file format is plain markdown + YAML frontmatter, no agent-specific extensions.
+…plus its `references/` directory. The exact discovery mechanism (uploaded folder, symlink path, manifest key) differs per host and changes faster than this README, so check your host's current docs. If you get it working on one, a PR adding the verified steps here is welcome.
 
 ## First-run setup
 

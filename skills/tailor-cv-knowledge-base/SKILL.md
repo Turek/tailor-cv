@@ -1,7 +1,6 @@
 ---
 name: tailor-cv-knowledge-base
-description: Guided onboarding for tailor-cv — turns a CV PDF + an interview into a populated profile.yaml, knowledge_base/*.md chunks, and prompts/*.md. Use when the user wants to set up tailor-cv for the first time, ingest a new CV, refine a knowledge-base chunk, or customize the generation prompts.
-argument-hint: "[init|prompts|expand <NN>]"
+description: Guided onboarding for tailor-cv — turns a CV PDF + an interview into a populated profile.yaml, knowledge_base/*.md chunks, and prompts/*.md. Use when the user wants to set up tailor-cv for the first time, ingest a new CV, refine a knowledge-base chunk, or customize the generation prompts. Subcommands (passed as args): `init`, `prompts`, `expand <NN>`.
 ---
 
 # tailor-cv-knowledge-base
@@ -15,7 +14,11 @@ You are guiding a tailor-cv user through populating their private project files 
 3. **Never overwrite without confirmation.** If a target file already has user content, show a diff and ask before replacing.
 4. **The user owns secrets, not you.** Never ask the user to paste API keys into the conversation — direct them to edit `.env` themselves and give them a clickable absolute path to the file (dotfiles are hidden in Finder by default; users may not know how to find `.env` on their own). Your only secret-related Bash calls are `grep -q` presence checks; never `cat .env`, never include a matched line in your output, never commit `.env`.
 5. **Preserve `{{JOB_DESCRIPTION}}`** in `prompts/cv_user.md` and `prompts/letter_user.md`. Validate before exit.
-6. **End every subcommand with `make tokens`** (run from the project root) and surface the result. This is the closest thing to a test the repo has — it loads `.env`, `profile.yaml`, and the KB, and counts tokens against the budget.
+6. **End every subcommand with the verification step its `references/*.md` defines.** Most subcommands end with `make tokens` (the project's standard sanity check — it loads `.env`, `profile.yaml`, and the KB, and counts tokens against the budget); `prompts` uses cheaper targeted checks instead since it doesn't touch the KB. Always surface the output.
+
+## Placeholder convention
+
+Unresolved fields in a KB chunk are wrapped in `{{…_DRAFT}}` (e.g. `{{SITUATION_DRAFT}}`, `{{ACTIONS_DRAFT}}`). Resolved fields contain no `{{…_DRAFT}}` token. `init` produces these placeholders when stamping templates from `references/templates/`; `expand` keys off them to find the sections that still need an interview. If you ever rename this convention, update both `init` and `expand` together.
 
 ## Routing
 

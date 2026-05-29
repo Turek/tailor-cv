@@ -1,6 +1,6 @@
 {
   "name": "tailor-cv",
   "description": "Project-local plugin shipping the tailor-cv-knowledge-base onboarding skill.",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "skills": ["./skills/tailor-cv-knowledge-base"]
 }

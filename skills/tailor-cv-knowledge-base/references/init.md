@@ -16,14 +16,48 @@ Takes the user from "empty tailor-cv checkout + a CV PDF" to:
 
 ## Phase 2 — Secrets (`.env`)
 
-1. If `PROJECT/.env` already exists, skip to Phase 3 (don't touch secrets the user already curated).
-2. Otherwise: `cp $PROJECT/.env.example $PROJECT/.env`.
-3. Ask the user, one at a time (use AskUserQuestion):
-   - "Paste your `ANTHROPIC_API_KEY` (sk-ant-…). Required."
-   - "Will you ever use `--provider google`? If yes, paste a `GEMINI_API_KEY` (AIza…); otherwise skip."
-   - "Will you ever pass `--url` to scrape job ads? If yes, paste a `FIRECRAWL_API_KEY` (fc-…); otherwise skip."
-4. For each provided key, use Edit to replace the corresponding placeholder line in `.env`. Never echo the key back in chat.
-5. Leave `TAILORCV_PROVIDER`, `TAILORCV_TOKEN_BUDGET`, `TAILORCV_MAX_OUTPUT_TOKENS` at the defaults the example ships.
+The user edits `.env` themselves. You never collect keys via `AskUserQuestion` — keys pasted into the conversation become transcript entries (and on managed hosts, server-side records). You only verify presence with `grep -q`.
+
+1. Before asking about keys, ask which providers/features the user plans to use (use `AskUserQuestion`). The required key depends on the answers:
+   - `ANTHROPIC_API_KEY` — **always required** (used by `make tokens` and the default provider).
+   - `GEMINI_API_KEY` — only if they'll pass `--provider google`.
+   - `FIRECRAWL_API_KEY` — only if they'll pass `--url` to scrape job ads.
+   Record the set of required keys for step 5.
+
+2. If `$PROJECT/.env` already exists, jump straight to step 5 — don't touch a file the user already curated.
+
+3. Otherwise copy the example into place via Bash. Always quote the path (it may contain spaces):
+   ```bash
+   cp "$PROJECT/.env.example" "$PROJECT/.env"
+   ```
+   Substitute the literal absolute path for `$PROJECT` — the Bash tool runs each call in a fresh shell, so shell variables don't persist across calls.
+
+4. **Hand the user a clickable link to the file.** Output exactly this (with `$PROJECT` substituted):
+
+   > Open this in your editor and paste your keys — I won't read the values:
+   >
+   > `/absolute/path/to/your/tailor-cv/.env`
+   >
+   > (`.env` is hidden in Finder by default. Clicking the path above opens it in your terminal's configured editor — or use `open /absolute/path/to/your/tailor-cv/.env` in a separate terminal.)
+   >
+   > You need:
+   > - `ANTHROPIC_API_KEY` (required) — `sk-ant-…` from https://console.anthropic.com/
+   > - `GEMINI_API_KEY` — only if you'll use `--provider google`
+   > - `FIRECRAWL_API_KEY` — only if you'll use `--url`
+   >
+   > Reply when you've saved the file.
+
+   Use a bare absolute path on its own line (Claude Code and most modern terminals turn it into a clickable link); also include the `open …` fallback for users whose terminal doesn't.
+
+5. **Verify presence without reading values.** Wait for the user to confirm. Then for each required key from step 1, run via Bash:
+   ```bash
+   grep -q '^ANTHROPIC_API_KEY=sk-ant-' "$PROJECT/.env" && echo "ANTHROPIC_API_KEY: OK" || echo "ANTHROPIC_API_KEY: MISSING"
+   ```
+   (Use `grep -q` — never plain `grep`, never `cat`. The `-q` flag suppresses the matched line so the key never enters the transcript.) For Gemini, match `^GEMINI_API_KEY=AIza`. For Firecrawl, match `^FIRECRAWL_API_KEY=fc-`.
+
+6. If anything is MISSING, point the user back at the same `.env` path and re-run step 5 after they confirm again. Don't proceed until all required keys check OK.
+
+7. Leave `TAILORCV_PROVIDER`, `TAILORCV_TOKEN_BUDGET`, `TAILORCV_MAX_OUTPUT_TOKENS` at the defaults the example ships.
 
 ## Phase 3 — Read the CV PDF
 
